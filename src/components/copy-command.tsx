@@ -25,7 +25,7 @@ export function CopyCommand() {
       type="button"
       onClick={copy}
       aria-label={copied ? "Copied" : `Copy ${COMMAND}`}
-      className="inline-flex w-fit items-center gap-2.5 rounded-full border border-chip-line bg-chip px-3.5 py-1.5 font-mono text-[0.85rem] text-chip-ink"
+      className="inline-flex w-fit cursor-pointer items-center gap-2.5 rounded-full border border-chip-line bg-chip px-3.5 py-1.5 font-mono text-[0.85rem] text-chip-ink"
     >
       <span className="text-chip-dim">$</span>
       <span>{COMMAND}</span>
@@ -51,7 +51,11 @@ export function CopyCommand() {
                 d="M3.5 8.5 6.5 11.5 12.5 4.5"
                 initial={reduce ? false : { pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: reduce ? 0 : 0.32, ease: EASE, delay: reduce ? 0 : 0.04 }}
+                transition={{
+                  duration: reduce ? 0 : 0.32,
+                  ease: EASE,
+                  delay: reduce ? 0 : 0.04,
+                }}
               />
             </motion.svg>
           ) : (
