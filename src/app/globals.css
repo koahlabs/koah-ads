@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #000;
+  --ink: #ededed;
+  --muted: #a1a1a1;
+  --term: #000;
+  --term-ink: #ededed;
+  --term-dim: #8a8a8a;
+  --term-line: #262626;
+  --chip: #161616;
+  --chip-ink: #ededed;
+  --chip-dim: #a1a1a1;
+  --chip-line: #262626;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-term: var(--term);
+  --color-term-ink: var(--term-ink);
+  --color-term-dim: var(--term-dim);
+  --color-term-line: var(--term-line);
+  --color-chip: var(--chip);
+  --color-chip-ink: var(--chip-ink);
+  --color-chip-dim: var(--chip-dim);
+  --color-chip-line: var(--chip-line);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.term {
+  :focus-visible {
+    outline-color: var(--term-ink);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes ad-in {
+  from {
+    transform: translateY(6px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+.caret {
+  animation: caret 1s steps(1) infinite;
+}
+
+.ad-in {
+  animation: ad-in 0.45s var(--ease-out-expo) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret,
+  .ad-in {
+    animation: none;
+  }
 }
