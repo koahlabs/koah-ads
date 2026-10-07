@@ -1,0 +1,30 @@
+{
+  "name": "koah-ads",
+  "version": "0.1.0",
+  "description": "Shows a sponsored Koah ad above the prompt after each answer, served through the Koah S2S API as a CLI publisher",
+  "author": {
+    "name": "Koah Labs"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "servingToken": {
+      "type": "string",
+      "title": "Koah serving token",
+      "description": "Publisher API key with the Serving scope (falls back to $KOAH_SERVING_TOKEN)",
+      "sensitive": true,
+      "required": false
+    },
+    "publisherId": {
+      "type": "string",
+      "title": "Koah publisher external ID",
+      "description": "From Settings → App in the publisher dashboard (falls back to $KOAH_PUBLISHER_ID)",
+      "required": false
+    },
+    "demo": {
+      "type": "boolean",
+      "title": "Demo ads",
+      "description": "Request Koah's fixed sample ad instead of live inventory",
+      "default": false
+    }
+  }
+}

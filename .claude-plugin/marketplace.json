@@ -1,0 +1,13 @@
+{
+  "name": "koah",
+  "owner": {
+    "name": "Koah Labs"
+  },
+  "description": "Koah Labs plugins for Claude Code",
+  "plugins": [
+    {
+      "name": "koah-ads",
+      "source": "./"
+    }
+  ]
+}
