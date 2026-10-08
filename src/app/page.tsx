@@ -1,68 +1,54 @@
-import { CopyCommand } from "@/components/copy-command";
-import { Terminal } from "@/components/terminal";
+import { ProductPreview } from "@/components/product-preview";
+import { WaitlistForm } from "@/components/waitlist-form";
+import { SOCIAL_URL } from "@/lib/brand";
+import { Icon } from "@/components/icon";
 
 export default function Home() {
   return (
-    <main className="w-full px-5 py-10 sm:px-6 sm:py-14">
-      <div className="flex w-full max-w-[42rem] flex-col items-stretch gap-8 text-left">
-        <h1 className="text-[1.35rem] font-semibold tracking-tight text-ink">
-          mux
-        </h1>
-
-        <p className="max-w-[38ch] text-[1.05rem] leading-relaxed text-ink">
-          Earn while you code.
+    <main id="main-content" className="site-shell">
+      <header className="intro">
+        <h1 className="wordmark">mux</h1>
+        <p className="tagline">Earn while you use Claude.</p>
+        <p className="description">
+          Install mux for Claude Code or Claude Desktop. Get paid while you work.
         </p>
+      </header>
 
-        <CopyCommand />
+      <WaitlistForm />
+      <ProductPreview />
 
-        <Terminal />
+      <p className="text-divider" aria-hidden="true">{"/////////"}</p>
 
-        <p className="max-w-[36rem] leading-[1.75] text-muted">
-          <span className="text-ink">mux</span> is a split terminal that lets
-          you earn money by displaying ads while you work.
-        </p>
-
-        <p className="font-mono tracking-[0.35em] text-muted">/////////</p>
-
-        <section className="max-w-[36rem] leading-[1.75] text-muted">
-          <h2 className="text-sm font-bold text-ink">Works on any terminal.</h2>
-          <p className="mt-1">
-            Ghostty, iTerm, the stock macOS terminal. If it doesn't work on your
-            terminal,{" "}
-            <a href="mailto:support@mux.com" className="underline">
-              let us know
-            </a>
-            .
+      <div className="details">
+        <section aria-labelledby="workflow-heading">
+          <h2 id="workflow-heading">Keep your workflow.</h2>
+          <p>
+            Code, write, and build as usual. A small sponsored ad sits above your
+            prompt. You don’t have to click it.
           </p>
-
-          <h2 className="mt-10 text-sm font-bold text-ink">
-            Ads that don't suck.
-          </h2>
-          <p className="mt-1">
-            Sugested actions and ads that are relevant to your workflow.
+        </section>
+        <section aria-labelledby="earnings-heading">
+          <h2 id="earnings-heading">Share in the ad revenue.</h2>
+          <p>
+            Earnings will depend on ad availability and eligible views. We’ll share
+            the rates and payout details before launch.
           </p>
-
-          <h2 className="mt-10 text-sm font-bold text-ink">
-            Keyboard. Shortcuts.
-          </h2>
-          <p className="mt-1">
-            No mouse needed. If you are used to tmux, you will feel right at
-            home.
-          </p>
-
-          <h2 className="mt-10 text-sm font-bold text-ink">Size matters.</h2>
-          <p className="mt-1">
-            Change the size of the ad strip to suit your needs.
-          </p>
-
-          <h2 className="mt-10 text-sm font-bold text-ink">
-            Paid through Stripe.
-          </h2>
-          <p className="mt-1">
-            Connect your bank account and get paid through Stripe.
+        </section>
+        <section aria-labelledby="access-heading">
+          <h2 id="access-heading">Early access is on the way.</h2>
+          <p>
+            We’re building mux now. Join the waitlist and we’ll email you when you
+            can try it. There’s nothing to install yet.
           </p>
         </section>
       </div>
+
+      <footer className="site-footer">
+        <a href={SOCIAL_URL} target="_blank" rel="noopener noreferrer">
+          Follow @guard_if for updates <Icon name="arrow-up-right" />
+        </a>
+        <p>An independent mod. Not affiliated with Anthropic.</p>
+      </footer>
     </main>
   );
 }
