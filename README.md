@@ -52,4 +52,4 @@ The tests cover input validation, storage failures, repeat signups, email retrie
 
 Add the same `LOOPS_API_KEY`, `LOOPS_WAITLIST_TRANSACTIONAL_ID`, and optional `LOOPS_WAITLIST_MAILING_LIST_ID` to the deployment's server environment. Set `NEXT_PUBLIC_SITE_URL` to the public site URL for social share images, or use Vercel's automatic production URL. Local `.env.local` values do not configure a deployed site.
 
-The page clearly identifies the mod as unreleased and independent of Anthropic. Ad previews show illustrative placements; the page does not promise earnings rates or payout terms.
+The page collects waitlist signups for the unreleased mod. Ad previews show illustrative placements and earnings; actual rates and payout details will follow before launch.

@@ -10,6 +10,7 @@ export function previewTiming(text: string): CSSProperties {
   return {
     "--preview-complete-delay": `${responseEnd + 100}ms`,
     "--preview-ad-delay": `${responseEnd + 350}ms`,
+    "--preview-earnings-delay": `${responseEnd + 850}ms`,
   } as CSSProperties;
 }
 

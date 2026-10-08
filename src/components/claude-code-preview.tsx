@@ -1,6 +1,7 @@
 import { BasetenLogo } from "@/components/baseten-logo";
 import { Icon } from "@/components/icon";
 import { PreviewResponse, previewTiming } from "@/components/preview-response";
+import { PreviewAdCredit, PreviewEarnings } from "@/components/preview-earnings";
 
 const RESPONSE = "I can help with that. Are you calling an API or running a model locally?";
 
@@ -20,11 +21,12 @@ export function ClaudeCodePreview() {
       className="workspace workspace-code"
       style={previewTiming(RESPONSE)}
       role="img"
-      aria-label="Claude Code terminal preview with the startup mascot, version, model, project directory, a sample Baseten sponsored ad, and a plain command prompt above the auto mode status."
+      aria-label="Claude Code terminal preview with a sample Baseten sponsored ad, a command prompt, and a demo earnings balance that increases from $12.40 to $12.41 after the ad appears. The amounts are illustrative."
     >
       <div className="code-titlebar">
         <div className="code-window-controls" aria-hidden="true"><i /><i /><i /></div>
-        <span className="code-window-title"><Icon name="folder" size={12} />Inference</span>
+        <span className="code-window-title"><Icon name="folder" size={12} /><span>Inference</span></span>
+        <PreviewEarnings />
       </div>
 
       <div className="code-content">
@@ -46,10 +48,13 @@ export function ClaudeCodePreview() {
 
       <div className="code-bottom">
         <div className="sponsored-strip preview-ad">
-          <div className="sponsor-name">
-            <BasetenLogo />
-            <span className="sponsor-brand">Baseten</span>
-            <span className="sponsor-label">Sponsored</span>
+          <div className="sponsor-heading">
+            <div className="sponsor-name">
+              <BasetenLogo />
+              <span className="sponsor-brand">Baseten</span>
+              <span className="sponsor-label">Sponsored</span>
+            </div>
+            <PreviewAdCredit />
           </div>
           <p>Production-ready AI inference. Fast models, less infrastructure.</p>
           <span className="sponsor-cta">Learn more <Icon name="arrow-right" size={14} /></span>

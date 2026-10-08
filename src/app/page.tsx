@@ -19,35 +19,32 @@ export default function Home() {
 
       <p className="text-divider" aria-hidden="true">{"/////////"}</p>
 
-      <div className="details">
-        <section aria-labelledby="workflow-heading">
-          <h2 id="workflow-heading">Keep your workflow.</h2>
-          <p>
-            Code, write, and build as usual. A small sponsored ad sits above your
-            prompt. You don’t have to click it.
-          </p>
-        </section>
-        <section aria-labelledby="earnings-heading">
-          <h2 id="earnings-heading">Share in the ad revenue.</h2>
-          <p>
-            Earnings will depend on ad availability and eligible views. We’ll share
-            the rates and payout details before launch.
-          </p>
-        </section>
-        <section aria-labelledby="access-heading">
-          <h2 id="access-heading">Early access is on the way.</h2>
-          <p>
-            We’re building mux now. Join the waitlist and we’ll email you when you
-            can try it. There’s nothing to install yet.
-          </p>
-        </section>
-      </div>
+      <section className="details" aria-labelledby="how-it-works-heading">
+        <h2 id="how-it-works-heading">How it works.</h2>
+        <ol className="process-steps">
+          <li>
+            <h3>Install mux.</h3>
+            <p>Add mux to Claude Code or Claude Desktop. Set it up once.</p>
+          </li>
+          <li>
+            <h3>Use Claude as usual.</h3>
+            <p>Code, write, and build. A small ad appears above your prompt.</p>
+          </li>
+          <li>
+            <h3>Get paid.</h3>
+            <p>mux pays you for the ads you see. No clicks or purchases needed.</p>
+          </li>
+        </ol>
+        <p className="process-note">
+          Join the waitlist for early access. We’ll email you the install link and
+          payout details when mux is ready.
+        </p>
+      </section>
 
       <footer className="site-footer">
         <a href={SOCIAL_URL} target="_blank" rel="noopener noreferrer">
           Follow @guard_if for updates <Icon name="arrow-up-right" />
         </a>
-        <p>An independent mod. Not affiliated with Anthropic.</p>
       </footer>
     </main>
   );
