@@ -39,7 +39,7 @@ export default function Home() {
             </li>
             <li>
               <h3>Get paid.</h3>
-              <p>mux pays you for the ads you see. No clicks or purchases needed.</p>
+              <p>Connect your card and get paid for the ads you see.</p>
             </li>
           </ol>
         </section>
