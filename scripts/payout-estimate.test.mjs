@@ -30,9 +30,9 @@ test("a zero-impression period stays at zero and malformed models fail", () => {
   assert.throws(() => estimatedPayoutCents(model, NaN), RangeError);
 });
 
-test("the board preserves nine digit positions, cents, and large totals", () => {
-  assert.equal(payoutDigits(2_202_680), "0,022,026.80");
-  assert.equal(payoutDigits(0), "0,000,000.00");
+test("the board uses eight number positions beside the currency tile and preserves large totals", () => {
+  assert.equal(payoutDigits(2_202_680), "022,026.80");
+  assert.equal(payoutDigits(0), "000,000.00");
   assert.equal(payoutDigits(100_000_000), "1,000,000.00");
   assert.equal(payoutDigits(1_000_000_000), "10,000,000.00");
   assert.throws(() => payoutDigits(-1), RangeError);

@@ -35,6 +35,6 @@ export function estimatedPayoutCents(model: PayoutEstimate, now: number): number
 
 export function payoutDigits(cents: number): string {
   if (!Number.isSafeInteger(cents) || cents < 0) throw new RangeError("Invalid payout amount");
-  const whole = Math.floor(cents / 100).toString().padStart(7, "0");
+  const whole = Math.floor(cents / 100).toString().padStart(6, "0");
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(cents % 100).toString().padStart(2, "0")}`;
 }

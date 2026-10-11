@@ -45,26 +45,24 @@ export function PayoutCounter({ model, initialCents }: { model: PayoutEstimate; 
     };
   }, [model]);
 
-  const digits = payoutDigits(reading.cents);
-  const previous = payoutDigits(reading.previous).padStart(digits.length, "0");
+  const digits = `$${payoutDigits(reading.cents)}`;
+  const previous = `$${payoutDigits(reading.previous).padStart(digits.length - 1, "0")}`;
   const firstNonZero = digits.search(/[1-9]/);
 
   return (
     <div className="payout-module" ref={counterRef}>
       <div className="payout-heading">
-        <p>Estimated payouts</p>
-        <p className="payout-scope">Koah network · since {date.format(new Date(model.periodStart))}</p>
+        <p>Payouts (est.)</p>
       </div>
       <div className="payout-board" role="img" aria-label={`${usd.format(reading.cents / 100)} in estimated Koah network payouts`}
-        title={`Estimate: paid Koah-native impressions × ${usd.format(model.cpmCents / 100)} CPM × ${model.sharePercent}%. The counter projects the ${date.format(new Date(model.periodStart))}–${date.format(new Date(Date.parse(model.periodEnd) - 1))} daily average. This is not a payment ledger.`}>
-        <span className="payout-currency" aria-hidden="true">$</span>
+        title={`Estimated Koah network payouts since ${date.format(new Date(model.periodStart))}: paid Koah-native impressions × ${usd.format(model.cpmCents / 100)} CPM × ${model.sharePercent}%. The counter projects the ${date.format(new Date(model.periodStart))}–${date.format(new Date(Date.parse(model.periodEnd) - 1))} daily average. This is not a payment ledger.`}>
         {[...digits].map((digit, index) => {
-          if (!/\d/.test(digit)) return <span key={`separator-${index}`} className="payout-separator" aria-hidden="true">{digit}</span>;
+          if (!/[\d$]/.test(digit)) return <span key={`separator-${index}`} className="payout-separator" aria-hidden="true">{digit}</span>;
           const oldDigit = previous[index];
           const changed = oldDigit !== digit;
-          const leading = index < (firstNonZero < 0 ? digits.length - 4 : firstNonZero);
+          const leading = index > 0 && index < (firstNonZero < 0 ? digits.length - 4 : firstNonZero);
           return (
-            <span className={`flip-card${leading ? " flip-card-leading" : ""}`} key={`digit-${digits.length}-${index}`} aria-hidden="true">
+            <span className={`flip-card${digit === "$" ? " flip-card-currency" : leading ? " flip-card-leading" : ""}`} key={`digit-${digits.length}-${index}`} aria-hidden="true">
               <span className="flip-face flip-top"><span>{digit}</span></span>
               <span className="flip-face flip-bottom"><span>{digit}</span></span>
               {changed && (

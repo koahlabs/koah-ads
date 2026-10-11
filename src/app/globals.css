@@ -265,9 +265,7 @@ h1, h2 { text-wrap: balance; }
 
 .payout-module { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px 24px; margin: 0 0 24px; }
 .payout-heading p { margin: 0; font-size: 16px; line-height: 1.65; }
-.payout-heading .payout-scope { color: var(--muted); }
 .payout-board { display: flex; align-items: center; gap: 3px; flex: none; color: #292b28; font-family: var(--font-geist-mono), monospace; font-size: 20px; font-variant-numeric: tabular-nums; }
-.payout-currency { margin-right: 4px; color: var(--muted); font-size: 16px; }
 .payout-separator { width: 7px; padding-top: 8px; color: var(--muted); text-align: center; }
 .flip-card { position: relative; display: block; width: 22px; height: 34px; border: 1px solid #dadbd5; border-radius: 4px; perspective: 180px; box-shadow: 0 1px 2px #0000000a; }
 .flip-card::after { content: ""; position: absolute; z-index: 4; inset: 50% 0 auto; height: 1px; background: #d1d3c9; pointer-events: none; }
@@ -278,6 +276,7 @@ h1, h2 { text-wrap: balance; }
 .flip-bottom { bottom: 0; border-radius: 0 0 3px 3px; background: #f7f8f2; }
 .flip-bottom > span { bottom: 0; }
 .flip-card-leading .flip-face > span { opacity: .4; }
+.flip-card-currency .flip-face > span { font-size: 16px; }
 .flip-previous { animation: flip-clear 0s 160ms forwards; }
 .flip-leaving { z-index: 2; transform-origin: bottom; animation: flip-out 160ms cubic-bezier(.4, 0, 1, 1) forwards; }
 .flip-arriving { z-index: 3; transform-origin: top; animation: flip-in 160ms 160ms cubic-bezier(0, 0, .2, 1) both; }
