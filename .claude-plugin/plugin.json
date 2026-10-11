@@ -1,6 +1,6 @@
 {
   "name": "koah-ads",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shows a sponsored Koah ad above the prompt after each answer, served through the Koah S2S API as a CLI publisher",
   "author": {
     "name": "Koah Labs"

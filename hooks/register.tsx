@@ -235,17 +235,18 @@ export const register: Register = (on, options) => {
       icon = <Svg source={svg} width={16} height={16} alt=" " />
     }
 
-    // Advertiser and CTA on one line, then the full ad text, wrapped.
+    // Advertiser line, the full ad text wrapped, then the CTA, all left aligned.
     return (
-      <Box flexDirection="column" paddingX={1}>
+      <Box flexDirection="column" alignItems="flex-start" paddingX={1}>
         <Box flexDirection="row" gap={1}>
           {icon}
           <Text bold>{current.advertiser.name}</Text>
           <Text dimColor>Sponsored</Text>
-          <Box flexGrow={1} />
-          <Link href={current.adLink}>{current.adCta} →</Link>
         </Box>
         <Text wrap="wrap">{current.adText}</Text>
+        <Text>
+          <Link href={current.adLink}>{current.adCta} →</Link>
+        </Text>
       </Box>
     )
   })
