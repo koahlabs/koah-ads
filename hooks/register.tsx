@@ -62,18 +62,23 @@ sips -s format bmp -z 16 16 "$t/icon" --out "$t/icon.bmp" >/dev/null 2>&1 \\
   && od -An -v -tx1 "$t/icon.bmp"
 `
 
-// A 32-bit BGRA BMP as SVG rects, one per run of equal pixels, cut to a
-// circle: plain vector markup, with no href for the desktop to strip.
+// A 24- or 32-bit BMP as SVG rects, one per run of equal pixels, cut to a
+// circle: plain vector markup, with no href for the desktop to strip. sips
+// writes 24-bit BGR for an image without alpha (Baseten's PNG), else BGRA.
 function bmpToSvg(hex: string): string | undefined {
   const bytes = hex.match(/../g)?.map(x => parseInt(x, 16)) ?? []
   const b = (i: number) => bytes[i] ?? 0
   const u32 = (i: number) => (b(i) | (b(i + 1) << 8) | (b(i + 2) << 16) | (b(i + 3) << 24)) >>> 0
-  if (bytes.length < 54 || b(0) !== 0x42 || b(1) !== 0x4d || (b(28) | (b(29) << 8)) !== 32) return undefined
+  const bpp = b(28) | (b(29) << 8)
+  if (bytes.length < 54 || b(0) !== 0x42 || b(1) !== 0x4d || (bpp !== 24 && bpp !== 32)) return undefined
   const offset = u32(10)
   const w = u32(18)
   const rawH = u32(22) | 0
   const h = Math.abs(rawH)
-  if (w !== 16 || h !== 16 || bytes.length < offset + w * h * 4) return undefined
+  const step = bpp / 8
+  // Each row is padded to a multiple of 4 bytes.
+  const stride = Math.ceil((w * step) / 4) * 4
+  if (w !== 16 || h !== 16 || bytes.length < offset + stride * h) return undefined
   const rects: string[] = []
   for (let y = 0; y < h; y++) {
     const row = rawH < 0 ? y : h - 1 - y
@@ -82,8 +87,8 @@ function bmpToSvg(hex: string): string | undefined {
     for (let x = 0; x <= w; x++) {
       let next: string | null = null
       if (x < w) {
-        const i = offset + (row * w + x) * 4
-        const [blue, green, red, a] = [b(i), b(i + 1), b(i + 2), b(i + 3)]
+        const i = offset + row * stride + x * step
+        const [blue, green, red, a] = [b(i), b(i + 1), b(i + 2), bpp === 32 ? b(i + 3) : 255]
         const inCircle = (x + 0.5 - 8) ** 2 + (y + 0.5 - 8) ** 2 <= 64
         if (inCircle && a > 0) {
           next = `fill="rgb(${red},${green},${blue})"${a < 255 ? ` fill-opacity="${(a / 255).toFixed(2)}"` : ''}`
