@@ -8,19 +8,28 @@ const AD = {
   impressionLink: 'https://app.koah.ai/api/v1/server/impression/648dd783-4b6f-4efa-b8a4-f7a95ccfce47',
 }
 
-// A top-down 32-bit BGRA 16px BMP, as `od -An -tx1` prints it, all one green.
-function bmpHex(): string {
+// A top-down 16px BMP, as `od -An -tx1` prints it, all one green: 32-bit BGRA,
+// or 24-bit BGR as sips writes for an image without alpha.
+function bmpHex(bpp: 24 | 32): string {
   const u32 = (n: number) => [n, n >> 8, n >> 16, n >> 24].map(x => x & 0xff)
-  const header = [0x42, 0x4d, ...u32(54 + 1024), 0, 0, 0, 0, ...u32(54), ...u32(40),
-    ...u32(16), ...u32(-16), 1, 0, 32, 0, ...Array(24).fill(0)]
-  const pixels = Array.from({ length: 256 }, () => [25, 231, 110, 255]).flat()
+  const pixel = bpp === 32 ? [25, 231, 110, 255] : [25, 231, 110]
+  const size = 16 * 16 * pixel.length
+  const header = [0x42, 0x4d, ...u32(54 + size), 0, 0, 0, 0, ...u32(54), ...u32(40),
+    ...u32(16), ...u32(-16), 1, 0, bpp, 0, ...Array(24).fill(0)]
+  const pixels = Array.from({ length: 256 }, () => pixel).flat()
   return [...header, ...pixels].map(x => x.toString(16).padStart(2, '0')).join(' ')
 }
 
 const OPTIONS = { servingToken: 'test_token', publisherId: 'pub_test', demo: true }
 
-for (const surface of ['terminal', 'desktop'] as const) {
-  test(`shows a labeled ad after an answer and reports one impression (${surface})`, { options: OPTIONS }, async ($, on) => {
+const CASES = [
+  { surface: 'terminal', bpp: 32 },
+  { surface: 'desktop', bpp: 32 },
+  { surface: 'desktop', bpp: 24 },
+] as const
+
+for (const { surface, bpp } of CASES) {
+  test(`shows a labeled ad after an answer and reports one impression (${surface}, ${bpp}-bit icon)`, { options: OPTIONS }, async ($, on) => {
     const calls: { url: string; body?: string; auth?: string }[] = []
     on('http.fetch', async (_$, e) => {
       calls.push({ url: e.url, body: e.init?.body, auth: e.init?.headers?.Authorization })
@@ -35,7 +44,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     // The curl pipe answers base64 PNG bytes, then the 16px BMP as hex.
     on('process.run', async (_$, e) => ({ value: {
       exitCode: 0,
-      stdout: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==\n---\n' + bmpHex(),
+      stdout: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==\n---\n' + bmpHex(bpp),
       stderr: '',
       isStdoutTruncated: false,
       isStderrTruncated: false,
@@ -79,7 +88,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await ui.find({ type: surface === 'terminal' ? 'Image' : 'Svg' })).toBeDefined()
     if (surface === 'desktop') {
       const svg = await ui.find({ type: 'Svg' })
-      expect(svg?.props.source).toContain('<rect')
+      expect(svg?.props.source).toContain('fill="rgb(110,231,25)"')
       expect(svg?.props.source).not.toContain('href')
     }
     expect(await ui.find({ type: 'Link', text: /Explore/ })).toBeDefined()
