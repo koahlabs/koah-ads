@@ -14,9 +14,11 @@ import { FolderSimpleIcon } from "@phosphor-icons/react/dist/ssr/FolderSimple";
 import { GlobeIcon } from "@phosphor-icons/react/dist/ssr/Globe";
 import { LaptopIcon } from "@phosphor-icons/react/dist/ssr/Laptop";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
+import { MoonIcon } from "@phosphor-icons/react/dist/ssr/Moon";
 import { PlusIcon } from "@phosphor-icons/react/dist/ssr/Plus";
 import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/ssr/SidebarSimple";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
+import { SunIcon } from "@phosphor-icons/react/dist/ssr/Sun";
 import { TerminalIcon } from "@phosphor-icons/react/dist/ssr/Terminal";
 import { TerminalWindowIcon } from "@phosphor-icons/react/dist/ssr/TerminalWindow";
 
@@ -37,9 +39,11 @@ const icons = {
   globe: GlobeIcon,
   laptop: LaptopIcon,
   microphone: MicrophoneIcon,
+  moon: MoonIcon,
   plus: PlusIcon,
   sidebar: SidebarSimpleIcon,
   sliders: SlidersHorizontalIcon,
+  sun: SunIcon,
   terminal: TerminalWindowIcon,
   "terminal-prompt": TerminalIcon,
 };

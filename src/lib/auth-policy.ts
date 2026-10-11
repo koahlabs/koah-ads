@@ -1,0 +1,28 @@
+export const authMessages: Record<string, string> = {
+  cancelled: "Google sign-in was cancelled. You can try again.",
+  callback: "We could not finish signing you in. Please try again.",
+  provider: "Google sign-in is unavailable right now. Please try again.",
+  session: "Your session has ended. Please sign in again.",
+  link: "This sign-in link has expired or was already used. Request a new link below.",
+};
+
+export function getAuthErrorMessage(error: string | string[] | undefined) {
+  if (error === undefined) return "";
+  if (typeof error !== "string" || !Object.hasOwn(authMessages, error)) return authMessages.callback;
+  return authMessages[error];
+}
+
+export function getAuthOrigin(requestOrigin?: string) {
+  const site = process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://mux-landing.vercel.app");
+  const productionOrigin = new URL(site).origin;
+  // Local development must return to this browser's local app, not the live website.
+  if (process.env.NODE_ENV !== "production" && requestOrigin) {
+    try {
+      const local = new URL(requestOrigin);
+      if (local.protocol === "http:" && ["localhost", "127.0.0.1"].includes(local.hostname) && local.port === "3000") return local.origin;
+    } catch { /* Use the configured site origin below. */ }
+  }
+  if (!productionOrigin.startsWith("https://")) throw new Error("The production site URL must use HTTPS.");
+  return productionOrigin;
+}

@@ -50,17 +50,17 @@ export function ProductPreview() {
           {desktop ? <ClaudeDesktopPreview /> : <ClaudeCodePreview />}
         </div>
       </div>
-      <div className="preview-tabs" role="group" aria-label="Preview platform">
-        <button type="button" aria-pressed={!desktop} onClick={() => selectPlatform("code")}>
-          <Icon name="terminal" />
-          Claude Code
-        </button>
-        <button type="button" aria-pressed={desktop} onClick={() => selectPlatform("desktop")}>
-          <Icon name="desktop" />
-          Claude Desktop
-        </button>
-      </div>
       <div className="preview-actions">
+        <div className="preview-tabs" role="group" aria-label="Preview platform">
+          <button type="button" aria-pressed={!desktop} onClick={() => selectPlatform("code")}>
+            <Icon name="terminal" />
+            Code
+          </button>
+          <button type="button" aria-pressed={desktop} onClick={() => selectPlatform("desktop")}>
+            <Icon name="desktop" />
+            Desktop
+          </button>
+        </div>
         <button
           type="button"
           className="preview-replay"

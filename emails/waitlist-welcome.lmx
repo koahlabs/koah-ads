@@ -1,6 +1,6 @@
-<Style backgroundColor="#000000" backgroundXPadding="16" backgroundYPadding="32" bodyColor="#000000" bodyXPadding="24" bodyYPadding="24" bodyFontFamily="Geist" bodyFontCategory="sans-serif" borderWidth="0" borderRadius="0" textBaseColor="#ededed" textBaseFontSize="16" textBaseLineHeight="160" textLinkColor="#ededed" heading1Color="#ededed" heading1FontSize="22" heading1LineHeight="130" />
-<H1 paddingBottom="24">mux</H1>
+<Style backgroundColor="#ffffff" backgroundXPadding="16" backgroundYPadding="32" bodyColor="#ffffff" bodyXPadding="24" bodyYPadding="24" bodyFontFamily="Geist" bodyFontCategory="sans-serif" borderWidth="0" borderRadius="0" textBaseColor="#000000" textBaseFontSize="16" textBaseLineHeight="160" textLinkColor="#000000" heading1Color="#000000" heading1FontSize="22" heading1LineHeight="130" />
+<H1 paddingBottom="24"><Link href="https://mux-landing.vercel.app/">mux</Link></H1>
 <Paragraph paddingBottom="16">Thanks for joining the mux waitlist.</Paragraph>
 <Paragraph paddingBottom="16">We’re building a mod that lets you earn money while using Claude Code or Claude Desktop. We’ll email you when early access opens.</Paragraph>
-<Paragraph paddingBottom="24">Follow <Link href="https://x.com/guard_if">@guard_if on Twitter / X</Link> for product updates.</Paragraph>
+<Paragraph paddingBottom="24">Follow <Link href="https://x.com/guard_if"><Underline>@guard_if on Twitter / X</Underline></Link> for product updates.</Paragraph>
 <Paragraph>Thanks,<Br />guard_if</Paragraph>
