@@ -28,7 +28,7 @@ test("development only accepts the app's local HTTP origin", () => {
     assert.equal(getAuthOrigin("http://localhost:3000"), "http://localhost:3000");
     assert.equal(getAuthOrigin("http://127.0.0.1:3000"), "http://127.0.0.1:3000");
     for (const origin of ["http://localhost:9000", "http://localhost.attacker.example:3000", "file:///tmp", "https://attacker.example"]) {
-      assert.equal(getAuthOrigin(origin), "https://mux-landing.vercel.app");
+      assert.equal(getAuthOrigin(origin), "https://getsidequest.dev");
     }
   });
 });

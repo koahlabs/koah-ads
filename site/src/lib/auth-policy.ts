@@ -14,7 +14,7 @@ export function getAuthErrorMessage(error: string | string[] | undefined) {
 
 export function getAuthOrigin(requestOrigin?: string) {
   const site = process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://mux-landing.vercel.app");
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://getsidequest.dev");
   const productionOrigin = new URL(site).origin;
   // Local development must return to this browser's local app, not the live website.
   if (process.env.NODE_ENV !== "production" && requestOrigin) {
