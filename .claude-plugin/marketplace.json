@@ -6,7 +6,7 @@
   "description": "Koah Labs plugins for Claude Code",
   "plugins": [
     {
-      "name": "koah-ads",
+      "name": "sidequest",
       "source": "./"
     }
   ]

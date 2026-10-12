@@ -1,13 +1,14 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { KoahAd } from '../types'
+import type { AdSlot, KoahAd } from '../types'
 
 const API = 'https://app.koah.ai/api/v1/server/request_ad'
 const MAX_TEXT = 4000
+const MAX_SLOTS = 50
 
-const ad = atom({ plugin: 'koah-ads', key: 'ad' } as const, null)
-const isOff = atom({ plugin: 'koah-ads', key: 'isOff' } as const, false)
+const slots = atom({ plugin: 'sidequest', key: 'slots' } as const, [] as AdSlot[])
+const isOff = atom({ plugin: 'sidequest', key: 'isOff' } as const, false)
 
 type Options = { servingToken?: string; publisherId?: string; demo?: boolean }
 
@@ -46,8 +47,7 @@ async function publicIp($: EngineInterface): Promise<string | undefined> {
 
 // $.http.fetch returns text only, so curl fetches the icon and base64 encodes
 // it. Many advertisers serve an ICO (Baseten does), so sips converts any
-// non-PNG to a 64px PNG first. After a `---` line it prints a 16px BMP as hex
-// for the desktop, which drops an <image> embedded in an Svg.
+// non-PNG to a 64px PNG first.
 const FETCH_ICON = `
 t=$(mktemp -d) || exit 1
 trap 'rm -rf "$t"' EXIT
@@ -57,70 +57,18 @@ if ! head -c 8 "$t/icon" | grep -q PNG; then
   mv "$t/icon.png" "$t/icon"
 fi
 base64 < "$t/icon"
-echo ---
-sips -s format bmp -z 16 16 "$t/icon" --out "$t/icon.bmp" >/dev/null 2>&1 \\
-  && od -An -v -tx1 "$t/icon.bmp"
 `
 
-// A 24- or 32-bit BMP as SVG rects, one per run of equal pixels, cut to a
-// circle: plain vector markup, with no href for the desktop to strip. sips
-// writes 24-bit BGR for an image without alpha (Baseten's PNG), else BGRA.
-function bmpToSvg(hex: string): string | undefined {
-  const bytes = hex.match(/../g)?.map(x => parseInt(x, 16)) ?? []
-  const b = (i: number) => bytes[i] ?? 0
-  const u32 = (i: number) => (b(i) | (b(i + 1) << 8) | (b(i + 2) << 16) | (b(i + 3) << 24)) >>> 0
-  const bpp = b(28) | (b(29) << 8)
-  if (bytes.length < 54 || b(0) !== 0x42 || b(1) !== 0x4d || (bpp !== 24 && bpp !== 32)) return undefined
-  const offset = u32(10)
-  const w = u32(18)
-  const rawH = u32(22) | 0
-  const h = Math.abs(rawH)
-  const step = bpp / 8
-  // Each row is padded to a multiple of 4 bytes.
-  const stride = Math.ceil((w * step) / 4) * 4
-  if (w !== 16 || h !== 16 || bytes.length < offset + stride * h) return undefined
-  const rects: string[] = []
-  for (let y = 0; y < h; y++) {
-    const row = rawH < 0 ? y : h - 1 - y
-    let start = 0
-    let fill: string | null = null
-    for (let x = 0; x <= w; x++) {
-      let next: string | null = null
-      if (x < w) {
-        const i = offset + row * stride + x * step
-        const [blue, green, red, a] = [b(i), b(i + 1), b(i + 2), bpp === 32 ? b(i + 3) : 255]
-        const inCircle = (x + 0.5 - 8) ** 2 + (y + 0.5 - 8) ** 2 <= 64
-        if (inCircle && a > 0) {
-          next = `fill="rgb(${red},${green},${blue})"${a < 255 ? ` fill-opacity="${(a / 255).toFixed(2)}"` : ''}`
-        }
-      }
-      if (next === fill && x < w) continue
-      if (fill) rects.push(`<rect x="${start}" y="${y}" width="${x - start}" height="1" ${fill}/>`)
-      start = x
-      fill = next
-    }
-  }
-  if (!rects.length) return undefined
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" shape-rendering="crispEdges">${rects.join('')}</svg>`
-}
-
-type Icon = { png?: string; svg?: string }
-const icons = new Map<string, Icon>()
-async function favicon($: EngineInterface, advertiser: KoahAd['advertiser']): Promise<Icon> {
+const icons = new Map<string, string | undefined>()
+async function favicon($: EngineInterface, advertiser: KoahAd['advertiser']): Promise<string | undefined> {
   const url = advertiser.iconUrl
     || (advertiser.rootDomain ? `https://${advertiser.rootDomain}/favicon.ico` : null)
-  if (!url) return {}
-  const cached = icons.get(url)
-  if (cached) return cached
-  const { exitCode, stdout } = await $.process.run(
-    ['/bin/sh', '-c', FETCH_ICON, 'sh', url],
-  )
-  const [pngPart = '', bmpPart = ''] = stdout.split('---')
-  const png = pngPart.replace(/\s/g, '')
-  // Keep PNGs only: a bad image makes the engine refuse the whole band.
-  const icon: Icon = exitCode === 0 && png.startsWith('iVBORw0KGgo')
-    ? { png, svg: bmpToSvg(bmpPart.replace(/\s/g, '')) }
-    : {}
+  if (!url) return undefined
+  if (icons.has(url)) return icons.get(url)
+  const { exitCode, stdout } = await $.process.run(['/bin/sh', '-c', FETCH_ICON, 'sh', url])
+  const png = stdout.replace(/\s/g, '')
+  // Keep PNGs only: a bad image makes the engine refuse the whole tree.
+  const icon = exitCode === 0 && png.startsWith('iVBORw0KGgo') ? png : undefined
   icons.set(url, icon)
   return icon
 }
@@ -140,42 +88,52 @@ async function reportImpression($: EngineInterface, url: string, token: string) 
   }
 }
 
+// $.state outlives a reload, so a slot can hold an ad from an older shape.
+function isAd(ad: unknown): ad is KoahAd {
+  const a = ad as Partial<KoahAd> | null
+  return (
+    typeof a?.adText === 'string' &&
+    typeof a.adCta === 'string' &&
+    typeof a.adLink === 'string' &&
+    typeof a.impressionLink === 'string' &&
+    typeof a.advertiser?.name === 'string'
+  )
+}
+
 export const register: Register = (on, options) => {
   opts = options as Options
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'koah-ads',
+      name: 'sidequest',
       description: 'Turn Koah sponsored ads on or off for this session',
     })
     if (!(await credentials($))) {
-      $.ui.toast('koah-ads: set servingToken and publisherId in /config, or KOAH_SERVING_TOKEN and KOAH_PUBLISHER_ID')
+      $.ui.toast('sidequest: set servingToken and publisherId in /config, or KOAH_SERVING_TOKEN and KOAH_PUBLISHER_ID')
     }
     return next(e)
   })
 
-  on('command.run', { command: 'koah-ads' }, async $ => {
+  on('command.run', { command: 'sidequest' }, async $ => {
     const off = !(await read($, isOff))
     await update($, isOff, () => off)
-    if (off) await update($, ad, () => null)
     return { text: off ? 'Koah ads off.' : 'Koah ads on.' }
   })
 
   on('prompt.submit', async ($, e, next) => {
-    // The current ad stays up until request_ad serves a new one.
     question = e.text
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId || e.reason !== 'answer' || !question.trim()) return result
+    if (e.agentId !== undefined || e.reason !== 'answer' || !e.answer.trim()) return result
     if (await read($, isOff)) return result
     const creds = await credentials($)
     if (!creds) return result
     const ip = await publicIp($)
     if (!ip) {
-      $.ui.toast('koah-ads: could not look up the public IP; no ad requested')
+      $.ui.toast('sidequest: could not look up the public IP; no ad requested')
       return result
     }
 
@@ -191,8 +149,8 @@ export const register: Register = (on, options) => {
         user: { id: await userId($), ip },
         context: {
           type: 'conversation',
-          question: question.slice(0, MAX_TEXT),
-          answer: e.answer.slice(0, MAX_TEXT) || undefined,
+          question: question.slice(0, MAX_TEXT) || undefined,
+          answer: e.answer.slice(0, MAX_TEXT),
           externalConversationId: (await $.session.id()).slice(0, 64),
         },
         demo: opts.demo ?? false,
@@ -201,57 +159,75 @@ export const register: Register = (on, options) => {
 
     if (res.status === 200) {
       const served = JSON.parse(res.text) as KoahAd
-      const icon = await favicon($, served.advertiser)
-      served.iconPng = icon.png
-      served.iconSvg = icon.svg
-      await update($, ad, () => served)
+      served.iconPng = await favicon($, served.advertiser)
+      const slot: AdSlot = { answer: e.answer.trim(), ad: served }
+      await update($, slots, list => [...(list ?? []), slot].slice(-MAX_SLOTS))
     } else if (res.status !== 204) {
-      $.ui.status(`koah-ads: request_ad ${res.status}`)
+      $.ui.status(`sidequest: request_ad ${res.status}`)
     }
     return result
   })
 
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.props.hasSurvey || (await read($, isOff))) return next(e)
+  // The ad sits under the last message of the reply it was served for.
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    if (await read($, isOff)) return next(e)
+    const text = e.props.text.trim()
+    const list = await read($, slots)
+    const slot = text === '' ? undefined : list.find(s => s.answer.endsWith(text))
+    if (slot === undefined || !isAd(slot.ad)) return next(e)
 
-    const { Box, Text, Link } = $.ui.resolve(e)
-    const creds = await credentials($)
-    if (!creds) {
-      return (
-        <Text dimColor>
-          koah-ads: no credentials. Add KOAH_SERVING_TOKEN and KOAH_PUBLISHER_ID to the env block of ~/.claude/settings.json, then start a new session.
-        </Text>
-      )
-    }
-    const current = await read($, ad)
-    if (!current) return next(e)
+    const { ad } = slot
+    const { Box, Text, Link, Markdown } = $.ui.resolve(e)
 
     // The ad is on screen now: that is the CLI impression event.
-    void reportImpression($, current.impressionLink, creds.token)
+    const creds = await credentials($)
+    if (creds) void reportImpression($, ad.impressionLink, creds.token)
 
-    // The terminal draws the PNG itself; the desktop draws the pixel SVG.
-    const { iconPng: png, iconSvg: svg } = current
     let icon = null
-    if (png && e.surface === 'terminal') {
+    if (ad.iconPng && e.surface === 'terminal') {
       const { Image } = $.ui.resolve(e)
-      icon = <Image source={{ png }} columns={2} rows={1} alt=" " />
-    } else if (svg && e.surface === 'desktop') {
+      icon = <Image source={{ png: ad.iconPng }} columns={2} rows={1} alt=" " />
+    } else if (ad.iconPng && e.surface === 'desktop') {
+      // The PNG inside an Svg, in a box of fixed size (2 cells by 1): in a row an
+      // Svg with no sized box collapses. The desktop draws nothing for an Svg
+      // whose alt is blank, so it carries the advertiser's name.
       const { Svg } = $.ui.resolve(e)
-      icon = <Svg source={svg} width={16} height={16} alt=" " />
+      const source =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
+        `<image href="data:image/png;base64,${ad.iconPng}" width="64" height="64"/></svg>`
+      icon = (
+        <Box width={2} height={1} flexShrink={0}>
+          <Svg source={source} width={16} height={16} alt={`${ad.advertiser.name} logo`} />
+        </Box>
+      )
     }
 
-    // Advertiser line, the full ad text wrapped, then the CTA, all left aligned.
+    // Box has no top-only border. The terminal gets a rule sized to fit (a cut
+    // Text ends in an ellipsis); the remote surfaces draw a markdown rule.
+    const divider = e.surface === 'terminal'
+      ? <Text dimColor>{'─'.repeat(Math.max((e.viewport?.columns ?? 64) - 4, 8))}</Text>
+      : <Markdown text="---" />
+
+    // The reply, a divider, then the ad: advertiser line, the ad text wrapped,
+    // and the CTA as a bordered link. No side padding, one gap between rows;
+    // rows stretch to the full width and only the button keeps its own.
     return (
-      <Box flexDirection="column" alignItems="flex-start" paddingX={1}>
-        <Box flexDirection="row" gap={1}>
-          {icon}
-          <Text bold>{current.advertiser.name}</Text>
-          <Text dimColor>Sponsored</Text>
+      <Box flexDirection="column" width="100%">
+        <Markdown text={e.props.text} />
+        <Box flexDirection="column" width="100%" marginTop={1}>{divider}</Box>
+        <Box flexDirection="column" width="100%" gap={1} marginTop={1}>
+          <Box flexDirection="row" gap={1}>
+            {icon}
+            <Text bold>{ad.advertiser.name}</Text>
+            <Text dimColor>Sponsored</Text>
+          </Box>
+          <Text wrap="wrap">{ad.adText}</Text>
+          <Box alignSelf="flex-start" borderStyle="round" borderDimColor paddingX={1}>
+            <Text>
+              <Link href={ad.adLink}>{ad.adCta}</Link>
+            </Text>
+          </Box>
         </Box>
-        <Text wrap="wrap">{current.adText}</Text>
-        <Text>
-          <Link href={current.adLink}>{current.adCta} →</Link>
-        </Text>
       </Box>
     )
   })

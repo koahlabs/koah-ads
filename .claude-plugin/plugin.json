@@ -1,7 +1,7 @@
 {
-  "name": "koah-ads",
+  "name": "sidequest",
   "version": "0.1.1",
-  "description": "Shows a sponsored Koah ad above the prompt after each answer, served through the Koah S2S API as a CLI publisher",
+  "description": "Shows a sponsored Koah ad under each answer, served through the Koah S2S API as a CLI publisher",
   "author": {
     "name": "Koah Labs"
   },

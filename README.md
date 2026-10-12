@@ -1,15 +1,14 @@
-# koah-ads
+# Sidequest
 
-A Claude Code mod that shows a sponsored [Koah](https://koah.ai) ad above the
-prompt after each answer. It serves ads through the Koah S2S API as a CLI
-publisher.
+A Claude Code mod that shows a sponsored [Koah](https://koah.ai) ad under each
+answer. It serves ads through the Koah S2S API as a CLI publisher.
 
 ## Install
 
 Run this at the prompt of a Claude Code terminal session:
 
 ```
-/plugin install koah-ads --marketplace koahlabs/koah-ads
+/plugin install sidequest --marketplace koahlabs/koah-ads
 ```
 
 Answer `y` to add the marketplace, then pick a scope. The install screen asks
@@ -27,8 +26,8 @@ Without a token and publisher ID the mod requests nothing.
 
 ## Use
 
-- `/koah-ads` turns ads on or off for the current session.
-- The ad stays up until Koah serves the next one.
+- `/sidequest` turns ads on or off for the current session.
+- Each answer gets its own ad, under its last message. Earlier ads stay where they are.
 - An impression is reported once, when the ad is on screen.
 
 ## What it sends
