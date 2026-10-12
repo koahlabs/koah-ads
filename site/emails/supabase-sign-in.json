@@ -1,0 +1,7 @@
+{
+  "transactionalId": "cmv48k2qf1ba20jwu1nt3vsk5",
+  "email": "{{ .Email }}",
+  "dataVariables": {
+    "signInUrl": "{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email"
+  }
+}

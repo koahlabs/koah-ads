@@ -6,12 +6,13 @@ export type KoahAd = {
   impressionLink: string
   /** The advertiser favicon as base64 PNG, fetched by the mod. */
   iconPng?: string
-  /** The favicon as 16px pixel-rect SVG markup, for the desktop. */
-  iconSvg?: string
 }
+
+/** One ad per answered turn, matched to its last message by the answer text. */
+export type AdSlot = { answer: string; ad: KoahAd }
 
 declare module 'claude-code' {
   interface PluginState {
-    'koah-ads': { ad: KoahAd | null; isOff: boolean }
+    'sidequest': { slots: AdSlot[]; isOff: boolean }
   }
 }
