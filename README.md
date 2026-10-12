@@ -16,7 +16,7 @@ One clearly labeled sponsored card, right where the answer ends.
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 [![Install](https://img.shields.io/badge/install-sidequest%40koah-1f6feb)](#install)
 [![Powered by Koah](https://img.shields.io/badge/ads%20by-Koah-111111)](https://koah.ai)
-[![Website](https://img.shields.io/badge/site-Vercel-000000?logo=vercel&logoColor=white)](https://mux-landing.vercel.app)
+[![Website](https://img.shields.io/badge/site-getsidequest.dev-000000?logo=vercel&logoColor=white)](https://getsidequest.dev)
 [![Last commit](https://img.shields.io/github/last-commit/koahlabs/sidequest?color=2ea44f)](https://github.com/koahlabs/sidequest/commits/main)
 
 [Install](#install) · [Configure](#configure) · [Use](#use) · [Privacy](#what-it-sends) · [Develop](#develop)
