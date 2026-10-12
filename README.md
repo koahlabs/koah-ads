@@ -3,6 +3,12 @@
 A Claude Code mod that shows a sponsored [Koah](https://koah.ai) ad under each
 answer. It serves ads through the Koah S2S API as a CLI publisher.
 
+| Folder | What it is |
+| --- | --- |
+| `plugin/` | The mod, published through the `koah` marketplace in `.claude-plugin/marketplace.json` |
+| `site/` | The website, a Next.js app deployed on Vercel (project `mux-landing`, root directory `site`) |
+| `install/` | A skill that walks someone through installing the mod |
+
 ## Install
 
 Run this at the prompt of a Claude Code terminal session:
@@ -44,8 +50,20 @@ render elsewhere, without the icon.
 
 ## Develop
 
+The mod:
+
 ```
-claude plugin validate .
-claude plugin test .
-claude --plugin-dir .
+claude plugin validate plugin
+claude plugin test plugin
+claude --plugin-dir plugin
 ```
+
+The site (see `site/README.md`):
+
+```
+cd site
+npm ci
+npm run dev
+```
+
+A push to `main` deploys the site to production when it changes `site/`.
