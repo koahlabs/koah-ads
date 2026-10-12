@@ -1,0 +1,5 @@
+<Style backgroundColor="#ffffff" backgroundXPadding="16" backgroundYPadding="32" bodyColor="#ffffff" bodyXPadding="24" bodyYPadding="24" bodyFontFamily="Geist" bodyFontCategory="sans-serif" borderWidth="0" borderRadius="0" textBaseColor="#000000" textBaseFontSize="16" textBaseLineHeight="160" textLinkColor="#000000" heading1Color="#000000" heading1FontSize="22" heading1LineHeight="130" />
+<H1 paddingBottom="24"><Link href="https://mux-landing.vercel.app/" notrack="true">mux</Link></H1>
+<Paragraph paddingBottom="16">Use this one-time link to sign in to mux.</Paragraph>
+<Paragraph paddingBottom="24"><Link href="{data.signInUrl}" notrack="true"><Underline>Sign in to mux</Underline></Link></Paragraph>
+<Paragraph>If you didn’t request this email, you can ignore it.</Paragraph>
