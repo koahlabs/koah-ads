@@ -105,7 +105,7 @@ phone number.
 | Folder | What it is |
 | --- | --- |
 | [`plugin/`](plugin) | The mod, published through the `koah` marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
-| [`site/`](site) | The website, a Next.js app deployed on Vercel (project `mux-landing`, root directory `site`) |
+| [`site/`](site) | The website, a Next.js app deployed on Vercel (project `sidequest-landing`, root directory `site`) |
 | [`install/`](install) | A skill that walks someone through installing the mod |
 
 ## Develop
