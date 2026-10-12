@@ -8,7 +8,7 @@ answer. It serves ads through the Koah S2S API as a CLI publisher.
 Run this at the prompt of a Claude Code terminal session:
 
 ```
-/plugin install sidequest --marketplace koahlabs/koah-ads
+/plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
 Answer `y` to add the marketplace, then pick a scope. The install screen asks

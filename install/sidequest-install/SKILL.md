@@ -6,7 +6,7 @@ description: Installs, configures, updates, or removes the sidequest Claude Code
 # Install Sidequest
 
 Sidequest is a Claude Code plugin published from the GitHub marketplace
-`koahlabs/koah-ads`. Under each answer it shows one labeled sponsored ad,
+`koahlabs/sidequest`. Under each answer it shows one labeled sponsored ad,
 served by the Koah S2S API with the user's own publisher credentials.
 The publisher earns the ad revenue.
 
@@ -30,7 +30,7 @@ already installed, skip to step 3.
 commands, so ask the user to type this at the prompt:
 
 ```
-/plugin install sidequest --marketplace koahlabs/koah-ads
+/plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
 They answer `y` to add the marketplace, press Enter for user scope, and fill in
@@ -39,7 +39,7 @@ the options screen (step 3). The plugin runs at once.
 **Anywhere else (desktop Code tab, IDE, or the user prefers you do it).** Run:
 
 ```bash
-claude plugin marketplace add koahlabs/koah-ads
+claude plugin marketplace add koahlabs/sidequest
 claude plugin install sidequest@koah --scope user
 ```
 
