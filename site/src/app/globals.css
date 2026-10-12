@@ -122,7 +122,9 @@ h1, h2 { text-wrap: balance; }
 .honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); pointer-events: none; }
 .waitlist-success h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; }
 .waitlist-success p { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
-.waitlist-success a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; }
+.waitlist-success { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 56px; }
+.waitlist-success-copy { min-width: 0; }
+.waitlist-success .button { flex: none; gap: 8px; text-decoration: none; }
 
 .product-preview { margin: 0; }
 .preview-window { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -300,7 +302,7 @@ h1, h2 { text-wrap: balance; }
   .button:hover { background: var(--button-hover); }
   .preview-tabs button:hover { color: var(--ink); }
   .preview-replay:hover { color: var(--ink); }
-  .site-footer a:hover, .waitlist-success a:hover { color: var(--ink); }
+  .site-footer a:hover { color: var(--ink); }
   .legal-back:hover { color: var(--ink); }
 }
 
@@ -308,6 +310,7 @@ h1, h2 { text-wrap: balance; }
   .site-shell { padding: 40px 20px; }
   .form-row { flex-direction: column; }
   .form-row input { flex: none; }
+  .waitlist-success { flex-direction: column; align-items: stretch; }
   .workspace { height: 480px; }
   .code-content { font-size: 11px; }
   .code-startup { gap: 12px; }

@@ -44,10 +44,12 @@ export function WaitlistForm() {
   if (status === "success") {
     return (
       <div className="waitlist-form waitlist-success" role="status">
-        <h2><Icon name="check" size={20} />You’re on the list.</h2>
-        <p>{emailSent ? "Check your inbox for a note from Sidequest." : "We’ll email you when early access opens."}</p>
-        <a href={SOCIAL_URL} target="_blank" rel="noopener noreferrer">
-          Follow @guard_if for updates <Icon name="arrow-up-right" />
+        <div className="waitlist-success-copy">
+          <h2><Icon name="check" size={20} />You’re on the list.</h2>
+          <p>{emailSent ? "Check your inbox for a note from Sidequest." : "We’ll email you when early access opens."}</p>
+        </div>
+        <a className="button" href={SOCIAL_URL} target="_blank" rel="noopener noreferrer">
+          Follow @guard_if <Icon name="arrow-up-right" />
         </a>
       </div>
     );
