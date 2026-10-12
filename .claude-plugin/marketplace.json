@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "sidequest",
-      "source": "./"
+      "source": "./plugin"
     }
   ]
 }
