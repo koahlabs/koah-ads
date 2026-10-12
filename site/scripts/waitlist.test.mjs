@@ -57,9 +57,25 @@ test("does not treat a conflicting payload as a delivered email", async () => {
   const mock = provider([{ body: [] }, { body: { success: true } }, { status: 409, body: { success: false, message: "Idempotency key already used with a different request body." } }]);
   assert.equal((await handleWaitlist(request(signup), env, mock.fetch)).status, 502);
 });
-test("preserves a saved signup if the final marker update fails", async () => {
-  const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, { status: 500, body: { success: false } }]);
+test("reports a sent email as sent when every marker update fails", async () => {
+  const failure = { status: 500, body: { success: false } };
+  const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, failure, failure, failure]);
   assert.deepEqual(await (await handleWaitlist(request(signup), env, mock.fetch)).json(), { success: true, emailSent: true });
+  assert.equal(mock.calls.filter((call) => call.data?.muxWaitlistWelcomeSent === true).length, 3);
+});
+test("retries the marker after a rejected or unreadable response and records it", async () => {
+  const responses = [{ body: [] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }];
+  const calls = [];
+  let markerAttempts = 0;
+  const fetcher = async (url, options) => {
+    const data = options.body ? JSON.parse(options.body) : undefined;
+    calls.push({ url, data });
+    if (data?.muxWaitlistWelcomeSent === true && ++markerAttempts === 1) throw new Error("network");
+    if (data?.muxWaitlistWelcomeSent === true && markerAttempts === 2) return new Response("not json", { status: 200 });
+    return Response.json(responses.shift().body);
+  };
+  assert.deepEqual(await (await handleWaitlist(request(signup), env, fetcher)).json(), { success: true, emailSent: true });
+  assert.equal(markerAttempts, 3);
 });
 test("does not send email when saving the signup fails", async () => {
   const mock = provider([{ body: [] }, { status: 429, body: { success: false } }]);

@@ -45,7 +45,7 @@ export function WaitlistForm() {
     return (
       <div className="waitlist-form waitlist-success" role="status">
         <h2><Icon name="check" size={20} />You’re on the list.</h2>
-        <p>{emailSent ? "Check your inbox for a note from mux." : "We’ll email you when early access opens."}</p>
+        <p>{emailSent ? "Check your inbox for a note from Sidequest." : "We’ll email you when early access opens."}</p>
         <a href={SOCIAL_URL} target="_blank" rel="noopener noreferrer">
           Follow @guard_if for updates <Icon name="arrow-up-right" />
         </a>
@@ -53,7 +53,7 @@ export function WaitlistForm() {
     );
   }
   return (
-    <form onSubmit={submit} className="waitlist-form" aria-label="Join the mux waitlist" aria-busy={status === "submitting"}>
+    <form onSubmit={submit} className="waitlist-form" aria-label="Join the Sidequest waitlist" aria-busy={status === "submitting"}>
       <label className="sr-only" htmlFor="waitlist-email">Email address</label>
       <div className="form-row">
         <input id="waitlist-email" name="email" type="email" placeholder="Your email address" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} required aria-describedby={status === "error" ? "waitlist-error" : undefined} disabled={status === "submitting"} />

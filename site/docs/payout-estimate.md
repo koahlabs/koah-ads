@@ -1,6 +1,6 @@
 # Footer payout estimate
 
-The home page shows a **modeled Koah network payout amount**, not mux earnings, payment transactions, or reconciled money already paid. The visible label is “Payouts (est.)”; the accessible description and tooltip identify the Koah network. The tooltip includes the start date and calculation. The board uses nine tiles for the current amount: one dollar sign, six whole-dollar digits, and two cent digits. Larger amounts preserve their full value by adding digits.
+The home page shows a **modeled Koah network payout amount**, not Sidequest earnings, payment transactions, or reconciled money already paid. The visible label is “Payouts”; the accessible description and tooltip identify the Koah network. The tooltip includes the start date and calculation. The board uses nine tiles for the current amount: one dollar sign, six whole-dollar digits, and two cent digits. Larger amounts preserve their full value by adding digits.
 
 ## Measured input
 

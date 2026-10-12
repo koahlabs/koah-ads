@@ -17,7 +17,7 @@ export default function Home() {
           </div>
           <p className="tagline">Earn while you use Claude.</p>
           <p className="description">
-            Install mux for Claude Code or Claude Desktop. Get paid while you work.
+            Install Sidequest for Claude Code or Claude Desktop. Get paid while you work.
           </p>
         </header>
 
@@ -30,12 +30,12 @@ export default function Home() {
           <h2 id="how-it-works-heading">How it works.</h2>
           <ol className="process-steps">
             <li>
-              <h3>Install mux.</h3>
-              <p>Add mux to Claude Code or Claude Desktop. Set it up once.</p>
+              <h3>Install Sidequest.</h3>
+              <p>Add Sidequest to Claude Code or Claude Desktop. Set it up once.</p>
             </li>
             <li>
               <h3>Use Claude as usual.</h3>
-              <p>Code, write, and build. A small ad appears above your prompt.</p>
+              <p>Code, write, and build. A small ad appears under each answer.</p>
             </li>
             <li>
               <h3>Get paid.</h3>

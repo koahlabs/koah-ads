@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const apiKey = process.env.LOOPS_API_KEY;
 if (!apiKey) throw new Error("Add LOOPS_API_KEY to .env.local first.");
-const name = "mux — Waitlist welcome";
+const name = "Sidequest — Waitlist welcome";
 const headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
 async function call(path, method = "GET", body) {
   const response = await fetch(`https://app.loops.so/api/v1/${path}`, {
@@ -44,15 +44,15 @@ if (!transactionalId) {
 // Save the ID immediately so a partial failure can resume without duplicate templates.
 await setEnv("LOOPS_WAITLIST_TRANSACTIONAL_ID", transactionalId);
 const transactional = await call(`transactional-emails/${transactionalId}`);
-if (transactional.name !== name) throw new Error("The configured template is not the mux welcome email. Refusing to overwrite it.");
+if (transactional.name !== name) throw new Error("The configured template is not the Sidequest welcome email. Refusing to overwrite it.");
 const draft = transactional.draftEmailMessageId ? transactional : await call(`transactional-emails/${transactionalId}/draft`, "POST");
 if (!draft.draftEmailMessageId) throw new Error("Loops did not return a draft email message ID.");
 const message = await call(`email-messages/${draft.draftEmailMessageId}`);
 await call(`email-messages/${draft.draftEmailMessageId}`, "POST", {
   expectedRevisionId: message.contentRevisionId,
-  subject: "You’re on the mux waitlist.",
+  subject: "You’re on the Sidequest waitlist.",
   previewText: "Thanks for joining. We’ll email you when early access opens.",
-  fromName: "guard_if at mux",
+  fromName: "guard_if at Sidequest",
   fromEmail: process.env.LOOPS_FROM_EMAIL || "noreply",
   emailFormat: "styled",
   lmx: await readFile("emails/waitlist-welcome.lmx", "utf8"),

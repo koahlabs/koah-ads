@@ -12,7 +12,7 @@ export function BrandLink() {
         </svg>
       </a>
       <span className="brand-divider" aria-hidden="true" />
-      <Link href="/" aria-label="mux home">mux</Link>
+      <Link href="/" aria-label="Sidequest home">sidequest</Link>
     </span>
   );
 }

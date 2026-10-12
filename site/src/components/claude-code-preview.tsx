@@ -21,7 +21,7 @@ export function ClaudeCodePreview() {
       className="workspace workspace-code"
       style={previewTiming(RESPONSE)}
       role="img"
-      aria-label="Claude Code terminal preview with a sample Baseten sponsored ad, a command prompt, and a demo earnings balance that increases from $12.40 to $12.41 after the ad appears. The amounts are illustrative."
+      aria-label="Claude Code terminal preview with a sample Baseten sponsored ad under the answer, a command prompt, and a demo earnings balance that increases from $12.40 to $12.41 after the ad appears. The amounts are illustrative."
     >
       <div className="code-titlebar">
         <div className="code-window-controls" aria-hidden="true"><i /><i /><i /></div>
@@ -43,11 +43,9 @@ export function ClaudeCodePreview() {
           <span className="code-answer-dot preview-answer-marker" aria-hidden="true" />
           <p className="preview-answer"><PreviewResponse text={RESPONSE} /></p>
         </div>
-        <p className="code-complete preview-complete">Baked for 4s</p>
-      </div>
-
-      <div className="code-bottom">
+        {/* The mod draws the ad under the last message of the answer, after a divider. */}
         <div className="sponsored-strip preview-ad">
+          <hr className="sponsor-divider" />
           <div className="sponsor-heading">
             <div className="sponsor-name">
               <BasetenLogo />
@@ -57,8 +55,12 @@ export function ClaudeCodePreview() {
             <PreviewAdCredit />
           </div>
           <p>Production-ready AI inference. Fast models, less infrastructure.</p>
-          <span className="sponsor-cta">Learn more <Icon name="arrow-right" size={14} /></span>
+          <span className="sponsor-cta">Learn more</span>
         </div>
+        <p className="code-complete preview-complete">Baked for 4s</p>
+      </div>
+
+      <div className="code-bottom">
         <div className="code-command-input">
           <Icon name="chevron" size={14} />
           <span className="code-cursor" aria-hidden="true" />

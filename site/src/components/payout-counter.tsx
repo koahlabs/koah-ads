@@ -52,7 +52,7 @@ export function PayoutCounter({ model, initialCents }: { model: PayoutEstimate; 
   return (
     <div className="payout-module" ref={counterRef}>
       <div className="payout-heading">
-        <p>Payouts (est.)</p>
+        <p>Payouts</p>
       </div>
       <div className="payout-board" role="img" aria-label={`${usd.format(reading.cents / 100)} in estimated Koah network payouts`}
         title={`Estimated Koah network payouts since ${date.format(new Date(model.periodStart))}: paid Koah-native impressions × ${usd.format(model.cpmCents / 100)} CPM × ${model.sharePercent}%. The counter projects the ${date.format(new Date(model.periodStart))}–${date.format(new Date(Date.parse(model.periodEnd) - 1))} daily average. This is not a payment ledger.`}>

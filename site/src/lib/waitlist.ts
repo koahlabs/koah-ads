@@ -10,6 +10,20 @@ function reply(body: Record<string, unknown>, status = 200) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+type Call = (path: string, method?: string, data?: object) => Promise<Response>;
+
+async function markWelcomeSent(call: Call, email: string) {
+  for (const wait of [0, 250, 750]) {
+    if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+    try {
+      const marked = await call("contacts/update", "PUT", { email, muxWaitlistWelcomeSent: true });
+      const result = await marked.json();
+      if (marked.ok && result?.success === true) return true;
+    } catch { /* A rejected or unreadable response counts as a failed attempt. */ }
+  }
+  return false;
+}
+
 export async function handleWaitlist(request: Request, env: Environment, fetcher: typeof fetch = fetch) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return reply({ message: "Please use the signup form on this site." }, 403);
@@ -37,14 +51,16 @@ export async function handleWaitlist(request: Request, env: Environment, fetcher
   if (body.website) return reply({ message: "Unable to accept this signup." }, 400);
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (email.length > 254 || !EMAIL.test(email) || email.split("@")[0].length > 64) return reply({ message: "Enter a valid email address." }, 400);
-  if (body.consent !== true) return reply({ message: "Agree to receive mux email updates to join." }, 400);
+  if (body.consent !== true) return reply({ message: "Agree to receive Sidequest email updates to join." }, 400);
   const { LOOPS_API_KEY: apiKey, LOOPS_WAITLIST_TRANSACTIONAL_ID: transactionalId } = env;
   if (!apiKey || !transactionalId) return reply({ message: "Signups are not open yet. Please try again soon." }, 503);
 
   // Per-instance abuse limit. Use an edge/WAF limit for distributed deployments.
   const now = Date.now();
   for (const [key, value] of attempts) if (value.expires <= now) attempts.delete(key);
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  // Vercel sets x-real-ip and overwrites x-forwarded-for with the client address,
+  // so a client cannot pick its own key. Elsewhere, put a trusted proxy in front.
+  const ip = request.headers.get("x-real-ip")?.trim() || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   const clientKey = createHmac("sha256", apiKey).update(ip).digest("hex");
   const attempt = attempts.get(clientKey) || { count: 0, expires: now + 600000 };
   if (attempt.count >= 8 || attempts.size >= 5000) return reply({ message: "Too many attempts. Please try again in ten minutes." }, 429);
@@ -80,13 +96,14 @@ export async function handleWaitlist(request: Request, env: Environment, fetcher
     // A conflict for a different payload is an error, never a successful send.
     const duplicate = sent.status === 409 && /idempotency/i.test(sentResult.message || "") && !/different|in.progress/i.test(sentResult.message || "");
     if ((!sent.ok || sentResult.success !== true) && !duplicate) throw new Error(`Welcome send: ${sent.status}`);
-    const marked = await call("contacts/update", "PUT", { email, muxWaitlistWelcomeSent: true });
-    const markedResult = await marked.json();
-    if (!marked.ok || markedResult.success !== true) console.error("mux waitlist: welcome marker save failed", marked.status);
+    // The email is sent: from here on a failure must never report it as unsent.
+    // The marker is what stops a second welcome after Loops' 24-hour idempotency
+    // window, so retry it before giving up.
+    if (!await markWelcomeSent(call, email)) console.error("Sidequest waitlist: welcome marker save failed after retries");
     return reply({ success: true, emailSent: !duplicate });
   } catch (error) {
     // Never log email addresses, provider bodies, or API keys.
-    console.error("mux waitlist:", error instanceof Error && /^(Contact|Welcome)/.test(error.message) ? error.message : "Provider request failed");
+    console.error("Sidequest waitlist:", error instanceof Error && /^(Contact|Welcome)/.test(error.message) ? error.message : "Provider request failed");
     return reply({ message: saved ? "We saved your place, but couldn’t send your email. Please try again." : "We couldn’t save your place. Please try again." }, 502);
   }
 }

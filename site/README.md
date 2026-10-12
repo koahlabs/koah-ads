@@ -1,4 +1,4 @@
-# mux waitlist
+# Sidequest website
 
 A landing page for an upcoming Claude Code and Claude Desktop mod that shares ad revenue with users. Built with Next.js 16, React 19, and Tailwind CSS 4.
 
@@ -16,11 +16,11 @@ Open http://localhost:3000. Keep `.env.local` out of Git. The form returns an ex
 
 1. Add `LOOPS_API_KEY` to `.env.local`.
 2. Set `LOOPS_FROM_EMAIL` to a sender local part on your verified Loops domain. The setup script defaults to `noreply`, the existing sender in the connected Koah account.
-3. Run `npm run loops:setup`. It creates the two mux contact properties, creates or reuses the dedicated mux welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
+3. Run `npm run loops:setup`. It creates the two waitlist contact properties (`muxWaitlistJoinedAt`, `muxWaitlistWelcomeSent`; the keys keep their original names), creates or reuses the dedicated Sidequest welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
 4. Optionally set `LOOPS_WAITLIST_MAILING_LIST_ID` to an existing list ID. Otherwise, select waitlist contacts in Loops with the filter **muxWaitlistJoinedAt is not empty**.
 5. Submit your own email through the site to test the complete flow.
 
-The published welcome email follows Modal's simple text layout: a small mux heading, three short paragraphs, an underlined @guard_if link, a linked mux heading, and a personal sign-off. It uses the site's black and white colors, thanks the reader, and links to [@guard_if on Twitter / X](https://x.com/guard_if). The sender display name is `guard_if at mux`. Loops appends its configured footer.
+The published welcome email follows Modal's simple text layout: a small sidequest heading, three short paragraphs, an underlined @guard_if link, a linked sidequest heading, and a personal sign-off. It uses the site's black and white colors, thanks the reader, and links to [@guard_if on Twitter / X](https://x.com/guard_if). The sender display name is `guard_if at Sidequest`. Loops appends its configured footer.
 
 The setup script uses the [Loops Content API](https://loops.so/docs/api-reference/create-transactional-email) and native [LMX](https://loops.so/docs/creating-emails/lmx). Re-run it after editing the LMX file. It checks revisions before overwriting a draft.
 

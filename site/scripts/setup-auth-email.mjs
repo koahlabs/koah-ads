@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const apiKey = process.env.LOOPS_API_KEY;
 if (!apiKey) throw new Error("Add LOOPS_API_KEY to .env.local first.");
-const name = "mux — Sign-in link";
+const name = "Sidequest — Sign-in link";
 async function call(path, method = "GET", body) {
   const response = await fetch(`https://app.loops.so/api/v1/${path}`, {
     method,
@@ -32,15 +32,15 @@ env = pattern.test(env) ? env.replace(pattern, `LOOPS_AUTH_TRANSACTIONAL_ID=${tr
 await writeFile(".env.local", env, { mode: 0o600 });
 
 const transactional = await call(`transactional-emails/${transactionalId}`);
-if (transactional.name !== name) throw new Error("The configured template is not the mux sign-in email. Refusing to overwrite it.");
+if (transactional.name !== name) throw new Error("The configured template is not the Sidequest sign-in email. Refusing to overwrite it.");
 const draft = transactional.draftEmailMessageId ? transactional : await call(`transactional-emails/${transactionalId}/draft`, "POST");
 if (!draft.draftEmailMessageId) throw new Error("Loops did not return a draft message ID.");
 const message = await call(`email-messages/${draft.draftEmailMessageId}`);
 await call(`email-messages/${draft.draftEmailMessageId}`, "POST", {
   expectedRevisionId: message.contentRevisionId,
-  subject: "Your mux sign-in link",
+  subject: "Your Sidequest sign-in link",
   previewText: "Use this one-time link to sign in.",
-  fromName: "mux",
+  fromName: "Sidequest",
   fromEmail: process.env.LOOPS_FROM_EMAIL || "noreply",
   emailFormat: "styled",
   lmx: await readFile("emails/sign-in-link.lmx", "utf8"),

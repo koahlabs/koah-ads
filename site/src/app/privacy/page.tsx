@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | mux",
-  description: "How mux handles waitlist information, accounts, email updates, and your privacy choices.",
+  title: "Privacy Policy | Sidequest",
+  description: "How Sidequest handles waitlist information, accounts, email updates, and your privacy choices.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy">
       <section>
         <h2>1. Who we are and what this covers</h2>
-        <p>mux is a project of Koah Labs Inc. This notice covers the mux website, accounts, and early access waitlist. It explains the current website’s data practices alongside <a href="https://www.koahlabs.com/legal/privacy-policy">Koah’s Privacy Policy</a>.</p>
+        <p>Sidequest is a project of Koah Labs Inc. This notice covers the Sidequest website, accounts, and early access waitlist. It explains the current website’s data practices alongside <a href="https://www.koahlabs.com/legal/privacy-policy">Koah’s Privacy Policy</a>.</p>
         <p>The mod is still in development. We will explain its data collection, advertising, and payout practices before asking you to install it or join an earnings program.</p>
       </section>
       <section>
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2>4. How we use and share information</h2>
-        <p>We use signup information to manage the waitlist, send a welcome email and mux updates, and prevent duplicate messages. We use technical information to operate the site and prevent abuse.</p>
+        <p>We use signup information to manage the waitlist, send a welcome email and Sidequest updates, and prevent duplicate messages. We use technical information to operate the site and prevent abuse.</p>
         <p><a href="https://loops.so/privacy">Loops</a> manages waitlist contacts and email delivery. Email services may record delivery, opens, and link clicks. <a href="https://vercel.com/legal/privacy-notice">Vercel</a> hosts the website. These providers process information to support those services.</p>
         <p><a href="https://supabase.com/privacy">Supabase</a> manages accounts and sign-in sessions. <a href="https://policies.google.com/privacy">Google</a> verifies Google sign-ins. We request basic account identity and profile information to sign you in. Signing in does not automatically subscribe you to marketing emails or add you to the waitlist.</p>
         <p>Our email provider delivers sign-in links. These are account messages, separate from marketing emails. We disable link tracking on the sign-in links in our Loops email template.</p>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2>5. Browser storage</h2>
-        <p>We save your light or dark mode choice in your browser’s local storage under “mux-theme.” You can remove it by clearing this site’s browser data. We also use cookies to keep you signed in and complete Google or email sign-in. Signing out clears the current sign-in session. The current website does not include advertising pixels or session replay tools.</p>
+        <p>We save your light or dark mode choice in your browser’s local storage under “sidequest-theme.” You can remove it by clearing this site’s browser data. We also use cookies to keep you signed in and complete Google or email sign-in. Signing out clears the current sign-in session. The current website does not include advertising pixels or session replay tools.</p>
       </section>
       <section>
         <h2>6. Your choices and privacy requests</h2>

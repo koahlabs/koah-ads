@@ -8,7 +8,7 @@ import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 import { signInEnabled } from "@/lib/feature-flags";
 
-export const metadata: Metadata = { title: "Your account | mux", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Your account | Sidequest", robots: { index: false, follow: false } };
 
 export default async function AccountPage() {
   if (!await signInEnabled()) redirect("/");
@@ -22,11 +22,11 @@ export default async function AccountPage() {
   return (
     <main id="main-content" className="site-shell auth-page">
       <header className="intro-heading"><div className="wordmark"><BrandLink /></div></header>
-      <Link className="legal-back" href="/"><Icon name="arrow-left" /> Back to mux</Link>
+      <Link className="legal-back" href="/"><Icon name="arrow-left" /> Back to Sidequest</Link>
       <section className="auth-content" aria-labelledby="account-heading">
         <h1 id="account-heading">{name}</h1>
         <p className="account-email">{user.email}</p>
-        <p>You’re signed in. mux is still in development.</p>
+        <p>You’re signed in. Sidequest is still in development.</p>
         <AuthForm mode="sign-out" />
       </section>
       <SiteFooter />
