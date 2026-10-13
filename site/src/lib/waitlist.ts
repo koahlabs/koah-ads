@@ -25,7 +25,13 @@ async function markWelcomeSent(call: Call, email: string) {
   return false;
 }
 
-export async function handleWaitlist(request: Request, env: Environment, fetcher: typeof fetch = fetch, onSignup?: (signup: Signup) => void) {
+export async function handleWaitlist(
+  request: Request,
+  env: Environment,
+  fetcher: typeof fetch = fetch,
+  onSignup?: (signup: Signup) => void,
+  onNewSignup?: () => void,
+) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return reply({ message: "Please use the signup form on this site." }, 403);
   if (!request.headers.get("content-type")?.includes("application/json")) return reply({ message: "Send a valid signup request." }, 415);
@@ -93,6 +99,11 @@ export async function handleWaitlist(request: Request, env: Environment, fetcher
     const savedResult = await savedContact.json();
     if (!savedContact.ok || savedResult.success !== true) throw new Error(`Contact save: ${savedContact.status}`);
     saved = true;
+    // Count newly stored waitlist members independently of Slack and email delivery.
+    if (newSignup && onNewSignup) {
+      try { onNewSignup(); }
+      catch { console.error("Sidequest waitlist: analytics scheduling failed"); }
+    }
     // Schedule notification as soon as storage succeeds, even if welcome mail fails.
     // Only new members and explicitly pending notifications qualify; old contacts
     // without a notification marker must not produce a backlog of Slack messages.

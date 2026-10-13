@@ -42,6 +42,12 @@ The API key remains on the server. The site requires a Node server; static expor
 
 The root layout includes Vercel Web Analytics through `@vercel/analytics/next`, following [Vercel's setup guide](https://vercel.com/docs/analytics/quickstart). Enable Web Analytics in the `sidequest-landing` dashboard and deploy the updated site to start collecting page views.
 
+The server also tracks the custom event `waitlist_signup` after Loops saves a new waitlist member. Open **Vercel → sidequest-landing → Analytics → Events → waitlist_signup** and select a date range to see the event count. Custom events require a Pro or Enterprise plan; the connected Koah team uses Enterprise. See [Vercel's custom-event guide](https://vercel.com/docs/analytics/custom-events).
+
+The event has only `source: "waitlist_form"` as custom data. It sends no email address or signup identifier. Existing waitlist members, invalid requests, and failed contact saves do not produce the event. Welcome-email and Slack failures do not change whether the new signup is counted. Next.js runs tracking after the response, so an analytics failure cannot block a signup. Tracking works even when the Slack webhook is unset.
+
+This is the count of newly stored signups after this code is deployed, not the historical Loops waitlist total. Analytics delivery is best effort, and concurrent submissions for the same new address can race before the first contact save becomes visible. Use Loops for the authoritative waitlist total. On deployments protected by Vercel Authentication or a password, server events need Vercel's `VERCEL_AUTOMATION_BYPASS_SECRET`; the SDK uses it automatically when configured. Public production deployments need no additional analytics secret.
+
 New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 📧 for the normalized email and 🗓️ for the first join date. Account sign-ins do not send messages.
 
 1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
@@ -60,7 +66,7 @@ npm run lint
 npm run build
 ```
 
-The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, and Slack delivery. They mock Loops and Slack and send no email or Slack messages.
+The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, Slack delivery, and custom-event eligibility. They mock Loops, Slack, and analytics and send no email, Slack messages, or analytics events.
 
 ## Deployment
 
