@@ -135,3 +135,57 @@ test("scheduling failures do not change the signup response", async () => {
   const response = await handleWaitlist(request(signup), env, mock.fetch, () => { throw new Error("scheduler unavailable"); });
   assert.deepEqual(await response.json(), { success: true, emailSent: true });
 });
+
+test("counts a newly saved signup without a Slack webhook and before welcome delivery", async () => {
+  let events = 0;
+  const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
+  const response = await handleWaitlist(request(signup), env, mock.fetch, undefined, () => {
+    events++;
+    assert.equal(mock.calls.length, 2, "the contact must be stored before counting the signup");
+  });
+  assert.equal(response.status, 200);
+  assert.equal(events, 1);
+  assert.equal(mock.calls[1].data.muxWaitlistSlackNotified, undefined);
+});
+
+test("counts a newly saved signup even when welcome delivery or Slack scheduling fails", async () => {
+  let events = 0;
+  const mock = provider([{ body: [] }, { body: { success: true } }, { status: 500, body: { success: false } }]);
+  const response = await handleWaitlist(request(signup), env, mock.fetch,
+    () => { throw new Error("Slack scheduler unavailable"); },
+    () => { events++; });
+  assert.equal(response.status, 502);
+  assert.equal(events, 1);
+});
+
+test("repeat submissions and pending Slack retries do not increase the signup count", async () => {
+  const notify = () => assert.fail("existing members must not produce another analytics event");
+  for (const marker of [false, true, undefined]) {
+    const mock = provider([{ body: [{ muxWaitlistJoinedAt: "2026-10-13T12:00:00.000Z", muxWaitlistWelcomeSent: true, muxWaitlistSlackNotified: marker }] }, { body: { success: true } }]);
+    assert.equal((await handleWaitlist(request(signup), env, mock.fetch, () => {}, notify)).status, 200);
+  }
+});
+
+test("invalid requests and failed saves do not count as signups", async () => {
+  const notify = () => assert.fail("rejected signups must not produce an analytics event");
+  assert.equal((await handleWaitlist(request({ ...signup, consent: false }), env, provider([]).fetch, undefined, notify)).status, 400);
+  const mock = provider([{ body: [] }, { status: 500, body: { success: false } }]);
+  assert.equal((await handleWaitlist(request(signup), env, mock.fetch, undefined, notify)).status, 502);
+});
+
+test("an analytics scheduling failure cannot block a signup or its Slack notification", async () => {
+  let slackEvents = 0;
+  const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
+  const response = await handleWaitlist(request(signup), env, mock.fetch,
+    () => { slackEvents++; },
+    () => { throw new Error("analytics scheduler unavailable"); });
+  assert.deepEqual(await response.json(), { success: true, emailSent: true });
+  assert.equal(slackEvents, 1);
+});
+
+test("an existing Loops contact joining the waitlist for the first time counts once", async () => {
+  let events = 0;
+  const mock = provider([{ body: [{ subscribed: false }] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
+  assert.equal((await handleWaitlist(request(signup), env, mock.fetch, undefined, () => { events++; })).status, 200);
+  assert.equal(events, 1);
+});
