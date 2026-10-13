@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Apply a saved choice before the page paints. CSS handles the system default. */}
         <script dangerouslySetInnerHTML={{ __html: `try{var theme=localStorage.getItem("sidequest-theme");if(theme==="light"||theme==="dark")document.documentElement.dataset.theme=theme}catch{}` }} />
       </head>
-      <body className="min-h-full bg-bg text-ink"><a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-ink focus:p-3 focus:text-bg">Skip to content</a>{children}</body>
+      <body className="min-h-full bg-bg text-ink"><a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-ink focus:p-3 focus:text-bg">Skip to content</a>{children}<Analytics /></body>
     </html>
   );
 }

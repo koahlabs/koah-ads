@@ -90,3 +90,48 @@ test("limits repeat requests from one client", async () => {
   }
   assert.equal((await handleWaitlist(request(signup, headers), env, provider([]).fetch)).status, 429);
 });
+
+test("queues a Slack notification after storage even when the welcome email fails", async () => {
+  const events = [];
+  const mock = provider([{ body: [] }, { body: { success: true } }, { status: 500, body: { success: false } }]);
+  const response = await handleWaitlist(request(signup), env, mock.fetch, event => {
+    assert.equal(mock.calls.length, 2, "the contact must be saved before scheduling Slack");
+    events.push(event);
+  });
+  assert.equal(response.status, 502);
+  assert.equal(mock.calls[1].data.muxWaitlistSlackNotified, false);
+  assert.deepEqual(events, [{ email: "hello@example.com", joinedAt: mock.calls[1].data.muxWaitlistJoinedAt }]);
+});
+
+test("notifies an existing Loops contact joining the waitlist for the first time", async () => {
+  const events = [];
+  const mock = provider([{ body: [{ subscribed: false }] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
+  assert.equal((await handleWaitlist(request(signup), env, mock.fetch, event => events.push(event))).status, 200);
+  assert.equal(events.length, 1);
+  assert.equal(mock.calls[1].data.muxWaitlistSlackNotified, false);
+  assert.equal(mock.calls[1].data.subscribed, undefined);
+});
+
+test("only pending repeat signups queue Slack; old and delivered signups stay quiet", async () => {
+  for (const marker of [false, true, undefined]) {
+    const events = [];
+    const joinedAt = "2026-10-01T00:00:00.000Z";
+    const mock = provider([{ body: [{ muxWaitlistJoinedAt: joinedAt, muxWaitlistWelcomeSent: true, muxWaitlistSlackNotified: marker }] }, { body: { success: true } }]);
+    assert.equal((await handleWaitlist(request(signup), env, mock.fetch, event => events.push(event))).status, 200);
+    assert.deepEqual(events, marker === false ? [{ email: "hello@example.com", joinedAt }] : []);
+    assert.equal(mock.calls[1].data.muxWaitlistSlackNotified, undefined, "do not overwrite a persisted marker on resubmission");
+  }
+});
+
+test("failed storage and invalid inputs never queue Slack", async () => {
+  const notify = () => assert.fail("must not notify for a rejected signup");
+  assert.equal((await handleWaitlist(request({ ...signup, consent: false }), env, provider([]).fetch, notify)).status, 400);
+  const mock = provider([{ body: [] }, { status: 500, body: { success: false } }]);
+  assert.equal((await handleWaitlist(request(signup), env, mock.fetch, notify)).status, 502);
+});
+
+test("scheduling failures do not change the signup response", async () => {
+  const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
+  const response = await handleWaitlist(request(signup), env, mock.fetch, () => { throw new Error("scheduler unavailable"); });
+  assert.deepEqual(await response.json(), { success: true, emailSent: true });
+});
