@@ -16,7 +16,7 @@ Open http://localhost:3000. Keep `.env.local` out of Git. The form returns an ex
 
 1. Add `LOOPS_API_KEY` to `.env.local`.
 2. Set `LOOPS_FROM_EMAIL` to a sender local part on your verified Loops domain. The setup script defaults to `noreply`, the existing sender in the connected Koah account.
-3. Run `npm run loops:setup`. It creates the two waitlist contact properties (`muxWaitlistJoinedAt`, `muxWaitlistWelcomeSent`; the keys keep their original names), creates or reuses the dedicated Sidequest welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
+3. Run `npm run loops:setup`. It creates the three waitlist contact properties (`muxWaitlistJoinedAt`, `muxWaitlistWelcomeSent`, `muxWaitlistSlackNotified`; the keys keep their original names), creates or reuses the dedicated Sidequest welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
 4. Optionally set `LOOPS_WAITLIST_MAILING_LIST_ID` to an existing list ID. Otherwise, select waitlist contacts in Loops with the filter **muxWaitlistJoinedAt is not empty**.
 5. Submit your own email through the site to test the complete flow.
 
@@ -38,6 +38,20 @@ The setup script uses the [Loops Content API](https://loops.so/docs/api-referenc
 
 The API key remains on the server. The site requires a Node server; static export cannot run the signup route.
 
+## Analytics and Slack signup notifications
+
+The root layout includes Vercel Web Analytics through `@vercel/analytics/next`, following [Vercel's setup guide](https://vercel.com/docs/analytics/quickstart). Enable Web Analytics in the `sidequest-landing` dashboard and deploy the updated site to start collecting page views.
+
+New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 📧 for the normalized email and 🗓️ for the first join date. Account sign-ins do not send messages.
+
+1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
+2. Run `npm run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
+3. Deploy the updated site. The webhook's Slack configuration determines the destination channel; the app cannot override it. See [Slack's incoming-webhook guide](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
+
+After Loops saves the signup, Next.js `after` sends the notification in the background. Welcome-email failures do not stop the Slack notification, and Slack failures do not change the signup response. Successful delivery saves the marker in Loops, so later submissions do not send another message. Pending notifications retry if the address submits the form again. Contacts enrolled before this integration, with no notification marker, do not send old signup messages.
+
+Incoming webhooks do not provide an idempotency key. Same-instance concurrent sends are deduplicated, but simultaneous requests across server instances or a failed delivery-marker write can still produce a duplicate. The code retries marker writes without repeating the Slack POST. Provider failures log only stages and status codes, never addresses or webhook URLs.
+
 ## Checks
 
 ```bash
@@ -46,7 +60,7 @@ npm run lint
 npm run build
 ```
 
-The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, and rate limiting. They mock Loops and send no email.
+The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, and Slack delivery. They mock Loops and Slack and send no email or Slack messages.
 
 ## Deployment
 

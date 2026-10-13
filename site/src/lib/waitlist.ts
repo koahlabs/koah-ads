@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
 
 type Environment = { LOOPS_API_KEY?: string; LOOPS_WAITLIST_TRANSACTIONAL_ID?: string; LOOPS_WAITLIST_MAILING_LIST_ID?: string };
-type Contact = { muxWaitlistJoinedAt?: string; muxWaitlistWelcomeSent?: boolean };
+type Contact = { muxWaitlistJoinedAt?: string; muxWaitlistWelcomeSent?: boolean; muxWaitlistSlackNotified?: boolean };
+type Signup = { email: string; joinedAt: string };
 const attempts = new Map<string, { count: number; expires: number }>();
 const API = "https://app.loops.so/api/v1";
 const EMAIL = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
@@ -24,7 +25,7 @@ async function markWelcomeSent(call: Call, email: string) {
   return false;
 }
 
-export async function handleWaitlist(request: Request, env: Environment, fetcher: typeof fetch = fetch) {
+export async function handleWaitlist(request: Request, env: Environment, fetcher: typeof fetch = fetch, onSignup?: (signup: Signup) => void) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return reply({ message: "Please use the signup form on this site." }, 403);
   if (!request.headers.get("content-type")?.includes("application/json")) return reply({ message: "Send a valid signup request." }, 415);
@@ -79,9 +80,12 @@ export async function handleWaitlist(request: Request, env: Environment, fetcher
     const contacts: Contact[] = await found.json();
     if (!Array.isArray(contacts)) throw new Error("Invalid contact lookup response");
     const existing = contacts[0];
+    const joinedAt = existing?.muxWaitlistJoinedAt || new Date().toISOString();
+    const newSignup = !existing?.muxWaitlistJoinedAt;
     const savedContact = await call("contacts/update", "PUT", {
       email,
-      muxWaitlistJoinedAt: existing?.muxWaitlistJoinedAt || new Date().toISOString(),
+      muxWaitlistJoinedAt: joinedAt,
+      ...(newSignup && onSignup ? { muxWaitlistSlackNotified: false } : {}),
       ...(!existing ? { source: "mux-waitlist" } : {}),
       ...(env.LOOPS_WAITLIST_MAILING_LIST_ID ? { mailingLists: { [env.LOOPS_WAITLIST_MAILING_LIST_ID]: true } } : {}),
       // Do not overwrite existing contacts' global subscription preferences.
@@ -89,6 +93,13 @@ export async function handleWaitlist(request: Request, env: Environment, fetcher
     const savedResult = await savedContact.json();
     if (!savedContact.ok || savedResult.success !== true) throw new Error(`Contact save: ${savedContact.status}`);
     saved = true;
+    // Schedule notification as soon as storage succeeds, even if welcome mail fails.
+    // Only new members and explicitly pending notifications qualify; old contacts
+    // without a notification marker must not produce a backlog of Slack messages.
+    if (onSignup && (newSignup || existing?.muxWaitlistSlackNotified === false)) {
+      try { onSignup({ email, joinedAt }); }
+      catch { console.error("Sidequest waitlist: Slack notification scheduling failed"); }
+    }
     if (existing?.muxWaitlistWelcomeSent === true) return reply({ success: true, emailSent: false });
     const idempotencyKey = createHmac("sha256", apiKey).update(`mux-welcome-v1:${transactionalId}:${email}`).digest("hex");
     const sent = await call("transactional", "POST", { email, transactionalId, addToAudience: false }, { "Idempotency-Key": idempotencyKey });

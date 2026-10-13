@@ -22,7 +22,7 @@ async function setEnv(key, value) {
 const team = await call("api-key");
 console.log(`Connected to Loops team: ${team.teamName}`);
 const properties = await call("contacts/properties");
-for (const property of [{ name: "muxWaitlistJoinedAt", type: "date" }, { name: "muxWaitlistWelcomeSent", type: "boolean" }]) {
+for (const property of [{ name: "muxWaitlistJoinedAt", type: "date" }, { name: "muxWaitlistWelcomeSent", type: "boolean" }, { name: "muxWaitlistSlackNotified", type: "boolean" }]) {
   const existing = properties.find((item) => item.key === property.name);
   if (existing && existing.type !== property.type) throw new Error(`Existing property ${property.name} has an incompatible type.`);
   if (!existing) await call("contacts/properties", "POST", property);
