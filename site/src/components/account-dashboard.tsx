@@ -1,0 +1,16 @@
+import { BrandLink } from "@/components/brand-link";
+import { SiteFooter } from "@/components/site-footer";
+import { AuthForm } from "@/components/auth-form";
+import { Icon } from "@/components/icon";
+import { DashboardContent } from "@/components/dashboard-content";
+import type { DashboardData, StripeStatus } from "@/lib/dashboard";
+
+export function AccountDashboard({ name, email, data, stripeStatus, countries, days, metric, preview = false, notice }: { name: string; email: string; data: DashboardData; stripeStatus: StripeStatus; countries: string[]; days: number; metric: "earnings" | "impressions"; preview?: boolean; notice?: string }) {
+  return (
+    <div className="dashboard-page">
+      <header className="dashboard-header"><div className="dashboard-header-inner"><div className="wordmark"><BrandLink /></div><details className="dashboard-account-menu"><summary aria-label="Account menu"><span className="dashboard-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span><span className="dashboard-account-name">{name}</span><Icon name="caret-down" size={12} /></summary><div className="dashboard-account-popover"><p>{email}</p>{preview ? <p className="dashboard-preview-account">Preview account</p> : <AuthForm mode="sign-out" />}</div></details></div></header>
+      <main id="main-content" className="dashboard-main"><DashboardContent data={data} stripeStatus={stripeStatus} countries={countries} days={days} metric={metric} preview={preview} notice={notice} /></main>
+      <div className="dashboard-footer"><SiteFooter /></div>
+    </div>
+  );
+}

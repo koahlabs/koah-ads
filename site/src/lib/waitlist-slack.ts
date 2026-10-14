@@ -1,5 +1,7 @@
+import { getWaitlistLeadNumber, type WaitlistCounterEnvironment } from "./waitlist-lead-number.ts";
+
 type Signup = { email: string; joinedAt: string };
-type Environment = { LOOPS_API_KEY?: string; SETTINGS__KOAH_INFO_SLACK_URL?: string };
+type Environment = WaitlistCounterEnvironment & { LOOPS_API_KEY?: string; SETTINGS__KOAH_INFO_SLACK_URL?: string };
 const inFlight = new Map<string, Promise<void>>();
 const API = "https://app.loops.so/api/v1";
 
@@ -36,12 +38,17 @@ async function deliver(signup: Signup, env: Environment, fetcher: typeof fetch) 
     if (!Array.isArray(contacts)) { console.error("Sidequest waitlist: invalid Slack contact lookup"); return; }
     if (contacts[0]?.muxWaitlistSlackNotified !== false) return;
 
+    const leadNumber = await getWaitlistLeadNumber(signup.email, env, fetcher);
+    // A counter failure must not hide a signup or invent an ordinal. The
+    // notification still arrives, with an explicit unavailable count.
+    if (leadNumber === null) console.error("Sidequest waitlist: Slack lead number unavailable");
+
     const sent = await fetcher(webhook.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Plain text prevents addresses from creating Slack markup or mentions.
       body: JSON.stringify({
-        text: `⚔️ Sidequest — new waitlist signup\n📧 Email: ${signup.email}\n🗓️ Joined: ${signup.joinedAt}`,
+        text: `⚔️ Sidequest — new waitlist signup\n🔢 ${leadNumber === null ? "Lead number: unavailable" : `Lead #${leadNumber.toLocaleString("en-US")}`}\n📧 Email: ${signup.email}`,
         mrkdwn: false,
         unfurl_links: false,
         unfurl_media: false,

@@ -139,9 +139,10 @@ test("scheduling failures do not change the signup response", async () => {
 test("counts a newly saved signup without a Slack webhook and before welcome delivery", async () => {
   let events = 0;
   const mock = provider([{ body: [] }, { body: { success: true } }, { body: { success: true } }, { body: { success: true } }]);
-  const response = await handleWaitlist(request(signup), env, mock.fetch, undefined, () => {
+  const response = await handleWaitlist(request(signup), env, mock.fetch, undefined, lead => {
     events++;
     assert.equal(mock.calls.length, 2, "the contact must be stored before counting the signup");
+    assert.deepEqual(lead, { email: "hello@example.com", joinedAt: mock.calls[1].data.muxWaitlistJoinedAt });
   });
   assert.equal(response.status, 200);
   assert.equal(events, 1);

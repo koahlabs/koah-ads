@@ -10,7 +10,8 @@
     "test": "node --experimental-strip-types --test scripts/*.test.mjs",
     "loops:setup": "node --env-file=.env.local scripts/setup-loops.mjs",
     "loops:auth-setup": "node --env-file=.env.local scripts/setup-auth-email.mjs",
-    "slack:setup": "node --env-file=.env.local scripts/setup-waitlist-slack.mjs"
+    "slack:setup": "node --env-file=.env.local scripts/setup-waitlist-slack.mjs",
+    "slack:seed-leads": "node --env-file=.env.local --experimental-strip-types scripts/seed-waitlist-leads.mjs"
   },
   "dependencies": {
     "@flags-sdk/vercel": "^1.5.1",
@@ -22,7 +23,8 @@
     "framer-motion": "^13.1.1",
     "next": "^16.4.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "stripe": "^23.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

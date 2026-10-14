@@ -30,7 +30,7 @@ export async function handleWaitlist(
   env: Environment,
   fetcher: typeof fetch = fetch,
   onSignup?: (signup: Signup) => void,
-  onNewSignup?: () => void,
+  onNewSignup?: (signup: Signup) => void,
 ) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return reply({ message: "Please use the signup form on this site." }, 403);
@@ -101,7 +101,7 @@ export async function handleWaitlist(
     saved = true;
     // Count newly stored waitlist members independently of Slack and email delivery.
     if (newSignup && onNewSignup) {
-      try { onNewSignup(); }
+      try { onNewSignup({ email, joinedAt }); }
       catch { console.error("Sidequest waitlist: analytics scheduling failed"); }
     }
     // Schedule notification as soon as storage succeeds, even if welcome mail fails.

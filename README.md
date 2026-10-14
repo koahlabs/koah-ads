@@ -53,6 +53,8 @@ Built to last, repaired for free. Patagonia's Ironclad Guarantee means...
 
 ## Install
 
+For the Claude Desktop app, follow [the desktop installation guide](docs/claude-desktop.md). Use the **Code** tab and a local session.
+
 Run this at the prompt of a Claude Code session:
 
 ```
@@ -96,7 +98,7 @@ phone number.
 
 ## Requirements
 
-- Claude Code with mod support
+- Claude Code 2.1.287 or later in the terminal, or the Claude Desktop app with bundled Claude Code 2.1.286 or later
 - macOS for advertiser icons: they use `curl` and `sips`. Ads still render
   elsewhere, without the icon.
 

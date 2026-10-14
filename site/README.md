@@ -48,7 +48,7 @@ The event has only `source: "waitlist_form"` as custom data. It sends no email a
 
 This is the count of newly stored signups after this code is deployed, not the historical Loops waitlist total. Analytics delivery is best effort, and concurrent submissions for the same new address can race before the first contact save becomes visible. Use Loops for the authoritative waitlist total. On deployments protected by Vercel Authentication or a password, server events need Vercel's `VERCEL_AUTOMATION_BYPASS_SECRET`; the SDK uses it automatically when configured. Public production deployments need no additional analytics secret.
 
-New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 📧 for the normalized email and 🗓️ for the first join date. Account sign-ins do not send messages.
+New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 🔢 for the lead number and 📧 for the normalized email. The message contains no join-date line. Account sign-ins do not send messages.
 
 1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
 2. Run `npm run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
@@ -57,6 +57,27 @@ New **waitlist** signups send an incoming-webhook message to **#koah-info**, hea
 After Loops saves the signup, Next.js `after` sends the notification in the background. Welcome-email failures do not stop the Slack notification, and Slack failures do not change the signup response. Successful delivery saves the marker in Loops, so later submissions do not send another message. Pending notifications retry if the address submits the form again. Contacts enrolled before this integration, with no notification marker, do not send old signup messages.
 
 Incoming webhooks do not provide an idempotency key. Same-instance concurrent sends are deduplicated, but simultaneous requests across server instances or a failed delivery-marker write can still produce a duplicate. The code retries marker writes without repeating the Slack POST. Provider failures log only stages and status codes, never addresses or webhook URLs.
+
+### Lead numbers, including the existing waitlist
+
+Apply `supabase/migrations/202610130002_waitlist_lead_numbers.sql` to the existing Supabase project. Set its server-only `SUPABASE_SECRET_KEY` (`sb_secret_…`) in `.env.local` and the deployment's sensitive environment variables. The counter migration can run independently of the account dashboard migration. It grants counter access only to the service role; browser sessions cannot read or change it.
+
+Export the current Loops audience as CSV with the `email` and `muxWaitlistJoinedAt` columns. Loops CLI 0.12.0 can find individual contacts but does not provide a bulk contact export or waitlist count. The import includes only contacts with a Sidequest first-join date, normalizes and deduplicates emails, and orders the existing leads by that date. It sends only email hashes to Supabase.
+
+```bash
+npm run slack:seed-leads -- /path/to/loops-export.csv --dry-run
+npm run slack:seed-leads -- /path/to/loops-export.csv
+```
+
+The first import gives the existing waitlist its lead numbers. Each new lead receives the next number. Retries and duplicate requests reuse the same number, including across server instances. The import can run again without renumbering known leads. The counter registers new stored leads even when Slack is disabled. If the counter is unavailable, Slack still reports the signup with **Lead number: unavailable** and no date line. Reimport a current Loops export after a counter outage to include any leads stored during that outage.
+
+For example:
+
+```text
+⚔️ Sidequest — new waitlist signup
+🔢 Lead #42
+📧 Email: hello@example.com
+```
 
 ## Checks
 
@@ -100,7 +121,7 @@ Run `npm run loops:auth-setup` to publish the dedicated white-background, black-
 The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`. Public Supabase settings are configured locally and in Vercel's Production, Preview, and Development environments. Store the Google client secret only in Supabase's Google provider settings.
 
 1. Open the existing Supabase organization through its Vercel Marketplace installation. Create a Supabase project if the organization has none.
-2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The app does not use database passwords, a secret key, or a service-role key.
+2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Authentication uses only these public keys. The Stripe connection and waitlist counter use a separate server-only Supabase secret key; see their setup instructions above and below.
 3. Add only these public Supabase settings to `.env.local`, preserving the existing Loops settings. Do not commit the file.
 4. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev` and allow `https://getsidequest.dev/auth/callback`, `https://mux-landing.vercel.app/auth/callback`, and `http://localhost:3000/auth/callback`. Add `http://127.0.0.1:3000/auth/callback` only if you use that host. Keep the `mux-landing.vercel.app` callback: Preview deployments have no `NEXT_PUBLIC_SITE_URL`, so `getAuthOrigin` builds their callback from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Production sets `NEXT_PUBLIC_SITE_URL=https://getsidequest.dev`; update it and this allowlist together if the domain changes.
 5. In Google Auth Platform, create a web OAuth client using the Supabase callback URL shown by **Authentication → Sign In / Providers → Google**. Enable the `openid`, email, and profile scopes. Configure the audience for the intended users.
@@ -110,6 +131,10 @@ The current setup uses the [mux Supabase project](https://supabase.com/dashboard
 Sign-in and waitlist subscriptions are separate. Google sign-in creates an account but does not add a Loops contact or send marketing email. The website shows an explicit unavailable state until Supabase is configured. Cancelled or failed OAuth flows return to sign-in with safe, fixed messages. Cookies use HttpOnly and SameSite=Lax; production uses Secure cookies. Session responses are private and are not cached.
 
 The auth tests check callback origin restrictions, public-key requirements, email validation, account creation requests, send failures, cooldowns, and configuration/error behavior. They do not replace real Google or email link tests.
+
+## Account dashboard
+
+The signed-in `/account` page shows impressions, earnings, daily activity, available balance, and payout history. Stripe Connect setup unlocks only when the verified available balance exceeds $10.00. The server checks the threshold again before creating a connection. See [the data migration, Stripe settings, and local design preview](docs/dashboard.md). The revenue pipeline and Stripe settings must be configured before live figures and connections are available.
 
 ## Footer payout estimate
 

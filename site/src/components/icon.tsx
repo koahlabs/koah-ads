@@ -21,6 +21,10 @@ import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHor
 import { SunIcon } from "@phosphor-icons/react/dist/ssr/Sun";
 import { TerminalIcon } from "@phosphor-icons/react/dist/ssr/Terminal";
 import { TerminalWindowIcon } from "@phosphor-icons/react/dist/ssr/TerminalWindow";
+import { LockSimpleIcon } from "@phosphor-icons/react/dist/ssr/LockSimple";
+import { ChartLineIcon } from "@phosphor-icons/react/dist/ssr/ChartLine";
+import { BankIcon } from "@phosphor-icons/react/dist/ssr/Bank";
+import { InfoIcon } from "@phosphor-icons/react/dist/ssr/Info";
 
 const icons = {
   "arrow-up-right": ArrowUpRightIcon,
@@ -46,6 +50,10 @@ const icons = {
   sun: SunIcon,
   terminal: TerminalWindowIcon,
   "terminal-prompt": TerminalIcon,
+  lock: LockSimpleIcon,
+  chart: ChartLineIcon,
+  bank: BankIcon,
+  info: InfoIcon,
 };
 
 export function Icon({
