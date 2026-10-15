@@ -1,21 +1,22 @@
 ---
 name: sidequest-install
-description: Installs, configures, updates, or removes the sidequest Claude Code plugin, which shows a sponsored Koah ad under each answer. Use when the user says "install sidequest", "set up Koah ads in Claude Code", "add my Koah serving token", "update sidequest", "turn off / uninstall sidequest", or when sidequest shows "no credentials".
+description: Installs, configures, updates, or removes the sidequest Claude Code plugin, which shows a sponsored Koah ad under each answer. Use when the user says "install sidequest", "set up Koah ads in Claude Code", "connect sidequest", "update sidequest", "turn off / uninstall sidequest", or when sidequest shows "run /sidequest-connect".
 ---
 
 # Install Sidequest
 
 Sidequest is a Claude Code plugin published from the GitHub marketplace
 `koahlabs/sidequest`. Under each answer it shows one labeled sponsored ad,
-served by the Koah S2S API with the user's own publisher credentials.
-The publisher earns the ad revenue.
+served through getsidequest.dev, which requests it from Koah for the user's
+account.
 
 ## Before installing, tell the user what it sends
 
-Each ad request sends to `app.koah.ai`: the last prompt and answer (up to
-4,000 characters each), the session ID, the public IP (looked up through
-`api.ipify.org`, for geo targeting), and a random per-machine user ID. Get a
-yes before going on. Do not install it silently.
+Each ad request sends to `getsidequest.dev`: the last prompt and answer (up to
+4,000 characters each), the session ID, and a random per-machine device key.
+The site forwards the request to Koah with the user's account. The mod looks up
+no IP; the site sees it as any web request does. Get a yes before going on.
+Do not install it silently.
 
 ## 1. Check Claude Code
 
@@ -33,8 +34,8 @@ commands, so ask the user to type this at the prompt:
 /plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
-They answer `y` to add the marketplace, press Enter for user scope, and fill in
-the options screen (step 3). The plugin runs at once.
+They answer `y` to add the marketplace, press Enter for user scope, and answer
+the options screen. The plugin runs at once.
 
 **Anywhere else (desktop Code tab, IDE, or the user prefers you do it).** Run:
 
@@ -43,39 +44,28 @@ claude plugin marketplace add koahlabs/sidequest
 claude plugin install sidequest@koah --scope user
 ```
 
-## 3. Credentials
+## 3. Connect
 
-The plugin needs two values from the Koah publisher dashboard at
-https://app.koah.ai:
+Ask the user to type this at the prompt:
 
-| Option | Env var fallback | What it is |
-| --- | --- | --- |
-| `servingToken` | `KOAH_SERVING_TOKEN` | Publisher API key with the **Serving** scope |
-| `publisherId` | `KOAH_PUBLISHER_ID` | Publisher external ID, under Settings → App |
-| `demo` | none | `true` serves Koah's fixed sample ad instead of live inventory |
+```
+/sidequest-connect
+```
 
-No publisher account yet: send the user to https://app.koah.ai to sign up.
-Without both values the plugin requests nothing and shows a dim
-"no credentials" line.
+Then the user:
 
-The serving token is a secret. Have the user enter it themselves, by one of:
+1. Opens getsidequest.dev/connect and signs in.
+2. Types the code that Claude Code shows in the terminal.
+3. Checks the request details and confirms.
 
-- the options screen in the `/plugin install` flow, or
-- their own terminal:
+Claude Code then shows "Sidequest connected as <email>". Until then the plugin
+sends no ad requests and shows a startup message: "run /sidequest-connect".
 
-  ```bash
-  claude plugin configure sidequest --values-stdin
-  ```
+Warn the user: never enter a code that someone else sent. Only enter a code
+shown in their own terminal.
 
-  then paste `{"servingToken":"…","publisherId":"…"}`, press Enter, then Ctrl-D.
-
-If the user pastes the token into chat anyway, pipe it to
-`claude plugin configure sidequest --values-stdin` without echoing it back,
-writing it to a file, or putting it on a command line that lands in shell
-history (use a heredoc). Never commit it.
-
-Check with `claude plugin configure sidequest`: it lists unset options. A token
-must not appear in its output or in your reply.
+The only option is `demo`. `true` serves Koah's fixed sample ad instead of
+live inventory.
 
 ## 4. Verify
 
@@ -83,10 +73,9 @@ must not appear in its output or in your reply.
 2. Ask the user to start a new session (a CLI install does not load into the
    running one), ask any question, and look under the answer:
    an advertiser name, `Sponsored`, a call-to-action link, and the ad text.
-3. No ad: run `claude --debug` and look for lines starting `sidequest:`. A
-   status line `sidequest: request_ad 401` or `403` means a wrong token or a
-   token without the Serving scope. A `204` from Koah means no ad filled; that
-   is normal and shows nothing. Setting `demo` to `true` confirms the wiring.
+3. No ad: if the plugin shows `sidequest: not connected`, the account is not
+   linked. Run `/sidequest-connect` again. A request with no fill shows nothing;
+   that is normal. Setting `demo` to `true` confirms the wiring.
 
 Advertiser icons need `curl` and `sips`, so they show on macOS only. The ad
 itself shows everywhere.

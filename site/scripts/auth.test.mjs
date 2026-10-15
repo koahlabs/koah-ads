@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAuthOrigin, authMessages, getAuthErrorMessage } from "../src/lib/auth-policy.ts";
+import { getAuthOrigin, authMessages, getAuthErrorMessage, getCallbackUrl } from "../src/lib/auth-policy.ts";
 import { getSupabaseConfig, isGoogleSignInAvailable } from "../src/lib/supabase/config.ts";
 import { requestEmailSignIn } from "../src/lib/email-sign-in.ts";
 
@@ -23,11 +23,12 @@ test("production callbacks cannot be redirected to a request-controlled origin",
     }
   });
 });
-test("development only accepts the app's local HTTP origin", () => {
+test("development accepts a local HTTP origin on any port", () => {
   withEnv({ NODE_ENV: "development" }, () => {
     assert.equal(getAuthOrigin("http://localhost:3000"), "http://localhost:3000");
     assert.equal(getAuthOrigin("http://127.0.0.1:3000"), "http://127.0.0.1:3000");
-    for (const origin of ["http://localhost:9000", "http://localhost.attacker.example:3000", "file:///tmp", "https://attacker.example"]) {
+    assert.equal(getAuthOrigin("http://localhost:3001"), "http://localhost:3001");
+    for (const origin of ["http://localhost.attacker.example:3000", "file:///tmp", "https://attacker.example"]) {
       assert.equal(getAuthOrigin(origin), "https://getsidequest.dev");
     }
   });
@@ -45,6 +46,15 @@ test("Supabase accepts public keys and rejects privileged keys", () => {
   withEnv({ NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt("anon") }, () => assert.ok(getSupabaseConfig()));
   for (const key of ["sb_secret_test", jwt("service_role"), "malformed"]) {
     withEnv({ NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: key }, () => assert.throws(() => getSupabaseConfig(), /publishable/));
+  }
+});
+test("Supabase requires HTTPS except for a local project outside production", () => {
+  const key = "sb_publishable_test";
+  const config = (NODE_ENV, url) => ({ NODE_ENV, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: key });
+  withEnv(config("development", "http://127.0.0.1:54321"), () => assert.ok(getSupabaseConfig()));
+  withEnv(config("development", "http://localhost:54321"), () => assert.ok(getSupabaseConfig()));
+  for (const [env, url] of [["production", "http://localhost:54321"], ["development", "http://project.supabase.co"], ["development", "http://localhost.attacker.example"]]) {
+    withEnv(config(env, url), () => assert.throws(() => getSupabaseConfig(), /HTTPS/));
   }
 });
 test("the sign-in UI only exposes defined error messages", () => {
@@ -81,6 +91,14 @@ test("email links support both new and existing accounts and use the app callbac
   assert.equal(result.sent, true);
   assert.equal(result.error, "");
   assert.equal(result.retryAfter, 60);
+});
+
+test("sign-in destinations map to fixed callback paths", () => {
+  assert.equal(getCallbackUrl("https://mux.example"), "https://mux.example/auth/callback");
+  assert.equal(getCallbackUrl("https://mux.example", "connect"), "https://mux.example/auth/callback/connect");
+  for (const destination of ["account", "https://attacker.example", "/connect", null]) {
+    assert.equal(getCallbackUrl("https://mux.example", destination), "https://mux.example/auth/callback");
+  }
 });
 
 test("invalid email inputs never reach the email provider", async () => {

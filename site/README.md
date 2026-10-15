@@ -4,13 +4,7 @@ A landing page for an upcoming Claude Code and Claude Desktop mod that shares ad
 
 ## Local development
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-Open http://localhost:3000. Keep `.env.local` out of Git. The form returns an explicit error until Loops is configured; it never pretends to store a signup.
+See [Local development](../README.md#local-development) in the root README. Keep `.env.local` out of Git. The waitlist form returns an explicit error until Loops is configured; it never pretends to store a signup.
 
 ## Loops setup
 
@@ -83,11 +77,11 @@ Toggle the boolean [`sign-in-enabled` flag in Vercel](https://vercel.com/koah-14
 - **On:** shows the Sign in or Account link and enables Google and email sign-in.
 - **Off:** hides the link, redirects `/sign-in`, `/account`, and `/auth/callback` to `/`, and blocks new sign-in requests from previously loaded forms. Signing out remains allowed. It does not delete accounts or revoke existing Supabase sessions.
 
-The initial flag is **Off** in Production and Preview and **On** in Development. `src/lib/feature-flags.ts` uses the official Flags SDK with Vercel's OIDC credentials. Vercel supplies these credentials on deployments. For local use, pull the Development credentials with `vercel env pull` and preserve the existing local Loops settings. Without a flag value, the fallback is **Off**. This flag controls the website's sign-in feature; Supabase still enforces user authentication and data permissions.
+The initial flag is **Off** in Production and Preview and **On** in Development. `src/lib/feature-flags.ts` uses the official Flags SDK with Vercel's OIDC credentials. Vercel supplies these credentials on deployments. For local use, set `FLAGS` as the root README describes. Without a flag value, the fallback is **Off**. This flag controls the website's sign-in feature; Supabase still enforces user authentication and data permissions.
 
 ### Google and email links
 
-The shared header opens `/sign-in`. The Google button starts Supabase's PKCE OAuth flow. `/auth/callback` exchanges the one-use code for a cookie session and always returns to `/account`. The account page verifies the user through Supabase on the server. Signing out ends the current browser session.
+The shared header opens `/sign-in`. The Google button starts Supabase's PKCE OAuth flow. `/auth/callback` exchanges the one-use code for a cookie session and always returns to `/account`. `/auth/callback/connect` does the same and returns to `/connect`; the `/connect` page uses it. The account page verifies the user through Supabase on the server. Signing out ends the current browser session.
 
 The email form calls Supabase `signInWithOtp` to send a one-use sign-in link. It also creates accounts for new email addresses, without passwords. It keeps the email in the form, shows send failures, and waits 60 seconds before offering another send. Supabase enforces its own server-side rate limits. Email sign-in does not subscribe users to marketing messages.
 
@@ -100,16 +94,36 @@ Run `npm run loops:auth-setup` to publish the dedicated white-background, black-
 The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`. Public Supabase settings are configured locally and in Vercel's Production, Preview, and Development environments. Store the Google client secret only in Supabase's Google provider settings.
 
 1. Open the existing Supabase organization through its Vercel Marketplace installation. Create a Supabase project if the organization has none.
-2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The app does not use database passwords, a secret key, or a service-role key.
-3. Add only these public Supabase settings to `.env.local`, preserving the existing Loops settings. Do not commit the file.
-4. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev` and allow `https://getsidequest.dev/auth/callback`, `https://mux-landing.vercel.app/auth/callback`, and `http://localhost:3000/auth/callback`. Add `http://127.0.0.1:3000/auth/callback` only if you use that host. Keep the `mux-landing.vercel.app` callback: Preview deployments have no `NEXT_PUBLIC_SITE_URL`, so `getAuthOrigin` builds their callback from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Production sets `NEXT_PUBLIC_SITE_URL=https://getsidequest.dev`; update it and this allowlist together if the domain changes.
+2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Sign-in does not use database passwords, a secret key, or a service-role key; only the ad proxy below reads `SUPABASE_SECRET_KEY`.
+3. Production and Preview get these public settings from the integration. Local values are in the root README.
+4. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev` and allow `https://getsidequest.dev/auth/callback`, `https://getsidequest.dev/auth/callback/connect`, `https://mux-landing.vercel.app/auth/callback`, `https://mux-landing.vercel.app/auth/callback/connect`, `http://localhost:3001/auth/callback`, and `http://localhost:3001/auth/callback/connect`. Local Supabase allows the same two `localhost:3001` URLs in `supabase/config.toml`. Keep the `mux-landing.vercel.app` callback: Preview deployments have no `NEXT_PUBLIC_SITE_URL`, so `getAuthOrigin` builds their callback from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Production sets `NEXT_PUBLIC_SITE_URL=https://getsidequest.dev`; update it and this allowlist together if the domain changes.
 5. In Google Auth Platform, create a web OAuth client using the Supabase callback URL shown by **Authentication → Sign In / Providers → Google**. Enable the `openid`, email, and profile scopes. Configure the audience for the intended users.
 6. Save the Google client ID and secret in the Supabase Google provider settings and enable the provider. Do not put the Google secret in Next.js public environment variables.
-7. Restart the local server after changing environment variables. Sign in with a real Google account, check `/account`, reload, sign out, and confirm `/account` returns to sign-in. Repeat on the deployed site.
+7. Sign in with a real Google account on the deployed site. Check `/account`, reload, sign out, and confirm `/account` returns to sign-in.
 
 Sign-in and waitlist subscriptions are separate. Google sign-in creates an account but does not add a Loops contact or send marketing email. The website shows an explicit unavailable state until Supabase is configured. Cancelled or failed OAuth flows return to sign-in with safe, fixed messages. Cookies use HttpOnly and SameSite=Lax; production uses Secure cookies. Session responses are private and are not cached.
 
 The auth tests check callback origin restrictions, public-key requirements, email validation, account creation requests, send failures, cooldowns, and configuration/error behavior. They do not replace real Google or email link tests.
+
+## Ad proxy
+
+The Claude Code plugin calls Koah through this site, so the Koah serving token never reaches a user's computer. In production, set `SUPABASE_SECRET_KEY`, `KOAH_SERVING_TOKEN`, and `KOAH_PUBLISHER_ID` (and optionally `KOAH_API_URL`) in the server environment. Apply `supabase/migrations/202610150001_sidequest_devices.sql`.
+
+- `POST /api/device` takes `Authorization: Bearer sq_<43 base64url characters>` and no body. It starts a connection for a key the plugin generated, and returns 201 `{ "userCode": "BCDFGHJK", "expiresAt": "<ISO time>" }`. Pending connections last 10 minutes. It returns 429 when one network (an IPv4 address or an IPv6 /64) already has 10 pending connections, 409 on a key or code collision, and 503 when sign-in is off or the request has no client IP. A server without Supabase configuration fails with 500.
+- `GET /api/device` takes the same bearer key and reports the connection. It returns 200 `{ "email": "..." }` when connected, 202 `{}` while pending, 403 `{ "error": "Account suspended" }` when the account is banned, and 404 when the key is unknown or expired. The plugin polls it.
+- `POST /api/ad` takes the same bearer key and `{ "question": "...", "answer": "...", "conversationId": "...", "demo": false }`. It looks up the connected user for that device key, forwards the request to Koah's `request_ad` with the user's id and the first `x-forwarded-for` address, and returns Koah's response with `impressionLink` replaced by `impressionId`, the Koah query id. The plugin reports the impression at `POST /api/impression/<impressionId>`. Koah no-fill (204) and rate limits (429) pass through. Other Koah failures return 502. A banned account gets 403; an unconnected key gets 401.
+- `POST /api/impression/<id>` takes the same bearer key and reports the impression to Koah, with the same 401 and 403 rules.
+- `/connect` takes no query parameters. A signed-in user types the 8-letter code shown in Claude Code (`XXXX-XXXX`). The page then shows when and where the request came from, next to this browser's IP address, and warns if they differ. The user confirms or cancels. The code is never part of a URL, so a link cannot confirm a connection for someone else.
+
+Device keys are stored only as SHA-256 hashes. Codes use the 20 letters `BCDFGHJKLMNPQRSTVWXZ`, expire after 10 minutes, and work once. A signed-in user gets at most 10 failed code lookups per hour. All table access goes through `security definer` functions in the migration; the tables have no RLS policies. `POST /api/ad` makes one call, `sidequest_take_ad_request`, which finds the device, checks for a ban, and counts the request against the daily limit of 500. The other device endpoints call `sidequest_device`, which also checks for a ban.
+
+### Admin: ban an account
+
+Banning uses Supabase Auth's user ban. It blocks sign-in and makes every proxy request for that user return 403.
+
+- Ban: `update auth.users set banned_until = '2999-01-01' where id = '<user id>';`. Unban with `banned_until = null`.
+- Find a user's devices: `select key_hash, created_at from sidequest_devices where user_id = '<user id>';`
+- Drop one device: `delete from sidequest_devices where key_hash = '<key hash>';`
 
 ## Footer payout estimate
 

@@ -1,3 +1,5 @@
+import { getCallbackUrl } from "./auth-policy.ts";
+
 export type EmailSignInState = {
   error: string;
   email: string;
@@ -14,7 +16,7 @@ type EmailAuth = {
 
 const emailPattern = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
 
-export async function requestEmailSignIn(value: unknown, auth: EmailAuth | null, origin: string): Promise<EmailSignInState> {
+export async function requestEmailSignIn(value: unknown, auth: EmailAuth | null, origin: string, destination?: unknown): Promise<EmailSignInState> {
   const email = typeof value === "string" ? value.trim().toLowerCase() : "";
   const state = { error: "", email, sent: false, retryAfter: 0 };
   if (email.length > 254 || email.split("@")[0].length > 64 || !emailPattern.test(email)) {
@@ -24,7 +26,7 @@ export async function requestEmailSignIn(value: unknown, auth: EmailAuth | null,
   try {
     const { error } = await auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true, emailRedirectTo: `${origin}/auth/callback` },
+      options: { shouldCreateUser: true, emailRedirectTo: getCallbackUrl(origin, destination) },
     });
     if (!error) return { ...state, sent: true, retryAfter: 60 };
     if (error.status === 429 || ["over_email_send_rate_limit", "over_request_rate_limit"].includes(error.code || "")) {

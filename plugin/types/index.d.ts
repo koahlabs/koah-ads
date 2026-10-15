@@ -3,7 +3,8 @@ export type KoahAd = {
   adCta: string
   adLink: string
   advertiser: { name: string; rootDomain: string; iconUrl: string | null }
-  impressionLink: string
+  /** UUID of the served ad; the mod builds the impression URL from it. */
+  impressionId: string
   /** The advertiser favicon as base64 PNG, fetched by the mod. */
   iconPng?: string
 }

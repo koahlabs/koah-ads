@@ -3,46 +3,82 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AdSlot, KoahAd } from '../types'
 
-const API = 'https://app.koah.ai/api/v1/server/request_ad'
 const MAX_TEXT = 4000
 const MAX_SLOTS = 50
+const SITE = 'https://getsidequest.dev'
+const POLL_MS = 1000
 
 const slots = atom({ plugin: 'sidequest', key: 'slots' } as const, [] as AdSlot[])
 const isOff = atom({ plugin: 'sidequest', key: 'isOff' } as const, false)
 
-type Options = { servingToken?: string; publisherId?: string; demo?: boolean }
+type Options = { demo?: boolean }
+type Pending = { key: string; expiresAt: number }
 
 let opts: Options = {}
+let siteOnce: Promise<string> | undefined
 let question = ''
-// Impression URLs already reported this load; Koah dedupes server-side too.
+// Impression ids already reported this load; Koah dedupes impressions per served ad.
 const reported = new Set<string>()
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-async function credentials($: EngineInterface) {
-  const token = opts.servingToken || (await $.env.get('KOAH_SERVING_TOKEN'))
-  const publisherId = opts.publisherId || (await $.env.get('KOAH_PUBLISHER_ID'))
-  return token && publisherId ? { token, publisherId } : null
+async function storedDeviceKey($: EngineInterface): Promise<string | undefined> {
+  const saved = await $.store.get('deviceKey')
+  return typeof saved === 'string' ? saved : undefined
 }
 
-// Opaque, stable per-machine user id: never an email or phone number.
-async function userId($: EngineInterface): Promise<string> {
-  const saved = await $.store.get('userId')
-  if (typeof saved === 'string') return saved
-  const id = `cc_${crypto.randomUUID()}`
-  await $.store.set('userId', id)
-  return id
+async function storedPending($: EngineInterface): Promise<Pending | undefined> {
+  const saved = (await $.store.get('pending')) as Partial<Pending> | undefined
+  return typeof saved?.key === 'string' && typeof saved.expiresAt === 'number' ? (saved as Pending) : undefined
 }
 
-// request_ad requires user.ip, and Koah geo-targets on it, so send the public
-// address. Looked up once per load; a failed lookup is retried next request.
-const IP_LOOKUP = 'https://api.ipify.org'
-const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
-let ip: string | undefined
-async function publicIp($: EngineInterface): Promise<string | undefined> {
-  if (ip) return ip
-  const res = await $.http.fetch(IP_LOOKUP)
-  const found = res.text.trim()
-  if (res.ok && IPV4.test(found)) ip = found
-  return ip
+function site($: EngineInterface): Promise<string> {
+  return (siteOnce ??= resolveSite($))
+}
+
+// The person launching Claude Code sets user settings and --settings; a repo cannot. Only a loopback URL is accepted, and --settings wins.
+async function resolveSite($: EngineInterface): Promise<string> {
+  for (const source of ['flag', 'user'] as const) {
+    try {
+      const { env } = await $.settings.read({ source })
+      const url = new URL((env as Record<string, string> | undefined)?.SIDEQUEST_URL ?? '')
+      if (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return url.origin
+    } catch {}
+  }
+  return SITE
+}
+
+function newDeviceKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  const b64 = btoa(String.fromCharCode(...bytes))
+  return `sq_${b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`
+}
+
+// Polls until the site confirms the pending key, refuses it, or it expires.
+// A newer /sidequest-connect replaces the stored key, which ends this poll.
+async function pollConnection($: EngineInterface, { key, expiresAt }: Pending) {
+  const base = await site($)
+  const finish = async (toast: string) => {
+    await $.store.delete('pending')
+    $.ui.toast(toast)
+  }
+
+  while ((await $.clock.now()) < expiresAt) {
+    await $.clock.sleep(POLL_MS)
+    const res = await $.http
+      .fetch(`${base}/api/device`, { headers: { Authorization: `Bearer ${key}` } })
+      .catch(() => undefined)
+    if ((await storedPending($))?.key !== key) return
+    if (res?.status === 200) {
+      const { email } = JSON.parse(res.text) as { email: string }
+      await $.store.set('deviceKey', key)
+      return finish(`Sidequest connected as ${email}.`)
+    }
+    if (res?.status === 403) return finish('Sidequest: this account is suspended.')
+    if (res?.status === 404) break
+  }
+  if ((await storedPending($))?.key === key) {
+    await finish('Sidequest: the code expired. Run /sidequest-connect again.')
+  }
 }
 
 // $.http.fetch returns text only, so curl fetches the icon and base64 encodes
@@ -73,14 +109,15 @@ async function favicon($: EngineInterface, advertiser: KoahAd['advertiser']): Pr
   return icon
 }
 
-async function reportImpression($: EngineInterface, url: string, token: string) {
-  if (reported.has(url)) return
-  reported.add(url)
+async function reportImpression($: EngineInterface, base: string, impressionId: string, key: string) {
+  if (reported.has(impressionId)) return
+  reported.add(impressionId)
+  const url = `${base}/api/impression/${impressionId}`
   for (const wait of [0, 1000, 4000, 15000]) {
     if (wait) await $.clock.sleep(wait)
     const res = await $.http.fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${key}` },
     })
     if (res.ok) return
     // Permanent errors stop; 429 and 5xx back off and reuse the same URL.
@@ -89,27 +126,36 @@ async function reportImpression($: EngineInterface, url: string, token: string) 
 }
 
 // $.state outlives a reload, so a slot can hold an ad from an older shape.
+// The mod builds the impression URL from the id, so the device key goes only to this site.
 function isAd(ad: unknown): ad is KoahAd {
   const a = ad as Partial<KoahAd> | null
   return (
     typeof a?.adText === 'string' &&
     typeof a.adCta === 'string' &&
     typeof a.adLink === 'string' &&
-    typeof a.impressionLink === 'string' &&
+    typeof a.impressionId === 'string' &&
+    UUID.test(a.impressionId) &&
     typeof a.advertiser?.name === 'string'
   )
 }
 
 export const register: Register = (on, options) => {
   opts = options as Options
+  siteOnce = undefined
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'sidequest',
       description: 'Turn Koah sponsored ads on or off for this session',
     })
-    if (!(await credentials($))) {
-      $.ui.toast('sidequest: set servingToken and publisherId in /config, or KOAH_SERVING_TOKEN and KOAH_PUBLISHER_ID')
+    await $.command.register({
+      name: 'sidequest-connect',
+      description: 'Link Sidequest to your account in the browser',
+    })
+    const pending = await storedPending($)
+    if (pending) void pollConnection($, pending).catch(() => {})
+    else if (!(await storedDeviceKey($))) {
+      $.ui.toast('sidequest: run /sidequest-connect to link your account')
     }
     return next(e)
   })
@@ -118,6 +164,27 @@ export const register: Register = (on, options) => {
     const off = !(await read($, isOff))
     await update($, isOff, () => off)
     return { text: off ? 'Koah ads off.' : 'Koah ads on.' }
+  })
+
+  on('command.run', { command: 'sidequest-connect' }, async $ => {
+    const base = await site($)
+    const key = newDeviceKey()
+    const res = await $.http
+      .fetch(`${base}/api/device`, { method: 'POST', headers: { Authorization: `Bearer ${key}` } })
+      .catch(() => undefined)
+    if (res?.status === 429) {
+      return { text: 'Too many connection attempts from this network. Try again in 10 minutes.' }
+    }
+    if (res?.status !== 201) return { text: 'Sidequest could not start a connection. Try again later.' }
+
+    const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string }
+    const pending = { key, expiresAt: Date.parse(expiresAt) }
+    await $.store.set('pending', pending)
+    await $.process.run(['open', `${base}/connect`]).catch(() => {})
+    void pollConnection($, pending).catch(() => {})
+    return {
+      text: `Open ${base.replace('https://', '')}/connect and enter code **${userCode}**. Never enter a code you didn't get from this terminal.`,
+    }
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -129,30 +196,19 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     if (e.agentId !== undefined || e.reason !== 'answer' || !e.answer.trim()) return result
     if (await read($, isOff)) return result
-    const creds = await credentials($)
-    if (!creds) return result
-    const ip = await publicIp($)
-    if (!ip) {
-      $.ui.toast('sidequest: could not look up the public IP; no ad requested')
-      return result
-    }
+    const key = await storedDeviceKey($)
+    if (!key || !question.trim()) return result
 
-    const res = await $.http.fetch(API, {
+    const res = await $.http.fetch(`${await site($)}/api/ad`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${creds.token}`,
+        Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        publisherId: creds.publisherId,
-        platform: 'cli',
-        user: { id: await userId($), ip },
-        context: {
-          type: 'conversation',
-          question: question.slice(0, MAX_TEXT) || undefined,
-          answer: e.answer.slice(0, MAX_TEXT),
-          externalConversationId: (await $.session.id()).slice(0, 64),
-        },
+        question: question.slice(0, MAX_TEXT),
+        answer: e.answer.slice(0, MAX_TEXT),
+        conversationId: (await $.session.id()).slice(0, 64),
         demo: opts.demo ?? false,
       }),
     })
@@ -162,8 +218,12 @@ export const register: Register = (on, options) => {
       served.iconPng = await favicon($, served.advertiser)
       const slot: AdSlot = { answer: e.answer.trim(), ad: served }
       await update($, slots, list => [...(list ?? []), slot].slice(-MAX_SLOTS))
+    } else if (res.status === 401) {
+      $.ui.status('sidequest: not connected — run /sidequest-connect')
+    } else if (res.status === 403) {
+      $.ui.status('sidequest: account suspended')
     } else if (res.status !== 204) {
-      $.ui.status(`sidequest: request_ad ${res.status}`)
+      $.ui.status(`sidequest: ad request ${res.status}`)
     }
     return result
   })
@@ -180,8 +240,10 @@ export const register: Register = (on, options) => {
     const { Box, Text, Link, Markdown } = $.ui.resolve(e)
 
     // The ad is on screen now: that is the CLI impression event.
-    const creds = await credentials($)
-    if (creds) void reportImpression($, ad.impressionLink, creds.token)
+    if (!reported.has(ad.impressionId)) {
+      const key = await storedDeviceKey($)
+      if (key) void reportImpression($, await site($), ad.impressionId, key)
+    }
 
     let icon = null
     if (ad.iconPng && e.surface === 'terminal') {
