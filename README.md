@@ -91,17 +91,17 @@ own terminal.
 
 ## Configure
 
-| Option | What it is |
-| --- | --- |
+| Option | What it is                                               |
+| ------ | -------------------------------------------------------- |
 | `demo` | Request Koah's fixed sample ad instead of live inventory |
 
 ## Use
 
-| Action | How |
-| --- | --- |
-| Turn ads off or on for this session | `/sidequest` |
-| See a sample ad | Set `demo` to `true` |
-| Count an impression | Automatic, once, when the mod draws the ad under the reply |
+| Action                              | How                                                        |
+| ----------------------------------- | ---------------------------------------------------------- |
+| Turn ads off or on for this session | `/sidequest`                                               |
+| See a sample ad                     | Set `demo` to `true`                                       |
+| Count an impression                 | Automatic, once, when the mod draws the ad under the reply |
 
 ## What it sends
 
@@ -119,15 +119,16 @@ email address or phone number.
 
 ## Repo layout
 
-| Folder | What it is |
-| --- | --- |
-| [`plugin/`](plugin) | The mod, published through the `koah` marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
-| [`site/`](site) | The website, a Next.js app deployed on Vercel (project `sidequest-landing`, root directory `site`) |
-| [`install/`](install) | A skill that walks someone through installing the mod |
+| Folder                | What it is                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`plugin/`](plugin)   | The mod, published through the `koah` marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
+| [`site/`](site)       | The website, a Next.js app deployed on Vercel (project `sidequest-landing`, root directory `site`)                        |
+| [`install/`](install) | A skill that walks someone through installing the mod                                                                     |
 
 ## Local development
 
-1. Install Docker (OrbStack), the Supabase CLI, and Node with npm. Check out Koah locally and run `koah-server`. Koah uses port 3000.
+1. Install Docker (OrbStack), the Supabase CLI, and Bun. Check out Koah locally and run `koah-server`. Koah uses port 3000.
+   Run `bun install` in the repo root. It installs the git hooks that format and lint staged files before each commit.
 2. Prepare local Koah:
    - Create a publisher for Sidequest.
    - In the local publisher dashboard, open Settings → Organization → API Keys. Create a key with the Serving scope.
@@ -151,8 +152,8 @@ email address or phone number.
 5. Start the site on port 3001, because Koah uses port 3000.
 
    ```
-   npm install
-   npm run dev -- -p 3001
+   bun install
+   bun run dev -p 3001
    ```
 
 6. From the repo root, start Claude Code with the plugin and the local site URL:
@@ -162,6 +163,7 @@ email address or phone number.
    ```
 
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
+
 7. Run `/sidequest-connect` in Claude Code. The browser opens `localhost:3001/connect`.
    - Sign in with email. Google sign-in is off locally.
    - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
@@ -176,7 +178,8 @@ Checks:
 ```
 claude plugin validate plugin
 claude plugin test plugin
-cd site && npm test && npm run lint && npm run build
+bun run lint
+cd site && bun run test && bun run build
 ```
 
 A push to `main` deploys the site to production when it changes `site/`.

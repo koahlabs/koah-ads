@@ -10,16 +10,16 @@ Query: `scripts/analytics/payout-impressions.sql`.
 
 Completed UTC period: `[2026-10-04T00:00:00Z, 2026-10-11T00:00:00Z)`.
 
-| UTC day | Qualifying impressions |
-| --- | ---: |
-| October 4 | 301,235 |
-| October 5 | 315,442 |
-| October 6 | 318,058 |
-| October 7 | 296,413 |
-| October 8 | 295,661 |
-| October 9 | 298,732 |
-| October 10 | 272,250 |
-| Total | 2,097,791 |
+| UTC day    | Qualifying impressions |
+| ---------- | ---------------------: |
+| October 4  |                301,235 |
+| October 5  |                315,442 |
+| October 6  |                318,058 |
+| October 7  |                296,413 |
+| October 8  |                295,661 |
+| October 9  |                298,732 |
+| October 10 |                272,250 |
+| Total      |              2,097,791 |
 
 All sources use `FINAL` and `_cdc_deleted = 0`. The query excludes demo publishers, demo advertisers, demo teams, forced preview queries, archived ads/ad groups/campaigns, house/affiliate campaigns, and programmatic sentinel ads. Impressions must fall between query creation and the inclusive V2 48-hour validity boundary.
 

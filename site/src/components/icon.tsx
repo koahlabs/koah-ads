@@ -58,5 +58,13 @@ export function Icon({
   className?: string;
 }) {
   const Glyph = icons[name];
-  return <Glyph size={size} weight="bold" className={`icon ${className}`} aria-hidden="true" focusable="false" />;
+  return (
+    <Glyph
+      size={size}
+      weight="bold"
+      className={`icon ${className}`}
+      aria-hidden="true"
+      focusable="false"
+    />
+  );
 }

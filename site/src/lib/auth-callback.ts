@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canSignIn, getAuthOrigin } from "@/lib/auth-policy";
 import { signInEnabled } from "@/lib/feature-flags";
@@ -16,7 +17,11 @@ export async function handleAuthCallback(request: NextRequest, destination: Auth
   let errorCode = params.get("error") === "access_denied" ? "cancelled" : "callback";
   const code = params.get("code");
   const tokenHash = params.get("token_hash");
-  const emailLink = tokenHash && params.get("type") === "email" && params.getAll("token_hash").length === 1 && params.getAll("type").length === 1;
+  const emailLink =
+    tokenHash &&
+    params.get("type") === "email" &&
+    params.getAll("token_hash").length === 1 &&
+    params.getAll("type").length === 1;
   if (params.get("error_code") === "otp_expired" || params.has("token_hash")) errorCode = "link";
   if (!params.has("error") && ((code && !tokenHash) || (emailLink && !code))) {
     const supabase = await createClient();
@@ -26,11 +31,14 @@ export async function handleAuthCallback(request: NextRequest, destination: Auth
           ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" })
           : await supabase.auth.exchangeCodeForSession(code!);
         if (!error) {
-          if (canSignIn(data.user?.email, await signInEnabled())) return redirect(`/${destination}`);
+          if (canSignIn(data.user?.email, await signInEnabled()))
+            return redirect(`/${destination}`);
           await supabase.auth.signOut({ scope: "local" });
           return redirect("/sign-in?error=invite_only");
         }
-      } catch { /* Only our own error codes reach the page. */ }
+      } catch {
+        /* Only our own error codes reach the page. */
+      }
     } else errorCode = "provider";
   }
   return redirect(`/sign-in?error=${errorCode}`);

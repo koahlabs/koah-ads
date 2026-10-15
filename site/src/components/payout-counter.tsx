@@ -6,7 +6,13 @@ import { estimatedPayoutCents, payoutDigits, type PayoutEstimate } from "@/lib/p
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const date = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
-export function PayoutCounter({ model, initialCents }: { model: PayoutEstimate; initialCents: number }) {
+export function PayoutCounter({
+  model,
+  initialCents,
+}: {
+  model: PayoutEstimate;
+  initialCents: number;
+}) {
   const [reading, setReading] = useState({ cents: initialCents, previous: initialCents });
   const counterRef = useRef<HTMLDivElement>(null);
 
@@ -18,7 +24,7 @@ export function PayoutCounter({ model, initialCents }: { model: PayoutEstimate; 
 
     const update = (animate: boolean) => {
       const cents = estimatedPayoutCents(model, Date.now());
-      setReading(current => {
+      setReading((current) => {
         const next = Math.max(current.cents, cents);
         if (next === current.cents && (animate || current.previous === next)) return current;
         return { cents: next, previous: animate ? current.cents : next };
@@ -54,22 +60,46 @@ export function PayoutCounter({ model, initialCents }: { model: PayoutEstimate; 
       <div className="payout-heading">
         <p>Payouts</p>
       </div>
-      <div className="payout-board" role="img" aria-label={`${usd.format(reading.cents / 100)} in estimated Koah network payouts`}
-        title={`Estimated Koah network payouts since ${date.format(new Date(model.periodStart))}: paid Koah-native impressions × ${usd.format(model.cpmCents / 100)} CPM × ${model.sharePercent}%. The counter projects the ${date.format(new Date(model.periodStart))}–${date.format(new Date(Date.parse(model.periodEnd) - 1))} daily average. This is not a payment ledger.`}>
+      <div
+        className="payout-board"
+        role="img"
+        aria-label={`${usd.format(reading.cents / 100)} in estimated Koah network payouts`}
+        title={`Estimated Koah network payouts since ${date.format(new Date(model.periodStart))}: paid Koah-native impressions × ${usd.format(model.cpmCents / 100)} CPM × ${model.sharePercent}%. The counter projects the ${date.format(new Date(model.periodStart))}–${date.format(new Date(Date.parse(model.periodEnd) - 1))} daily average. This is not a payment ledger.`}
+      >
         {[...digits].map((digit, index) => {
-          if (!/[\d$]/.test(digit)) return <span key={`separator-${index}`} className="payout-separator" aria-hidden="true">{digit}</span>;
+          if (!/[\d$]/.test(digit))
+            return (
+              <span key={`separator-${index}`} className="payout-separator" aria-hidden="true">
+                {digit}
+              </span>
+            );
           const oldDigit = previous[index];
           const changed = oldDigit !== digit;
-          const leading = index > 0 && index < (firstNonZero < 0 ? digits.length - 4 : firstNonZero);
+          const leading =
+            index > 0 && index < (firstNonZero < 0 ? digits.length - 4 : firstNonZero);
           return (
-            <span className={`flip-card${digit === "$" ? " flip-card-currency" : leading ? " flip-card-leading" : ""}`} key={`digit-${digits.length}-${index}`} aria-hidden="true">
-              <span className="flip-face flip-top"><span>{digit}</span></span>
-              <span className="flip-face flip-bottom"><span>{digit}</span></span>
+            <span
+              className={`flip-card${digit === "$" ? " flip-card-currency" : leading ? " flip-card-leading" : ""}`}
+              key={`digit-${digits.length}-${index}`}
+              aria-hidden="true"
+            >
+              <span className="flip-face flip-top">
+                <span>{digit}</span>
+              </span>
+              <span className="flip-face flip-bottom">
+                <span>{digit}</span>
+              </span>
               {changed && (
                 <span key={`${oldDigit}-${digit}-${reading.cents}`} className="flip-motion">
-                  <span className="flip-face flip-bottom flip-previous"><span>{oldDigit}</span></span>
-                  <span className="flip-face flip-top flip-leaving"><span>{oldDigit}</span></span>
-                  <span className="flip-face flip-bottom flip-arriving"><span>{digit}</span></span>
+                  <span className="flip-face flip-bottom flip-previous">
+                    <span>{oldDigit}</span>
+                  </span>
+                  <span className="flip-face flip-top flip-leaving">
+                    <span>{oldDigit}</span>
+                  </span>
+                  <span className="flip-face flip-bottom flip-arriving">
+                    <span>{digit}</span>
+                  </span>
                 </span>
               )}
             </span>

@@ -5,35 +5,58 @@ const API = "https://app.loops.so/api/v1";
 
 // This module is imported only by the server route. Never expose the webhook
 // to the browser or include it in logs.
-export async function notifyWaitlistSignup(signup: Signup, env: Environment, fetcher: typeof fetch = fetch) {
+export async function notifyWaitlistSignup(
+  signup: Signup,
+  env: Environment,
+  fetcher: typeof fetch = fetch,
+) {
   if (!env.LOOPS_API_KEY || !env.SETTINGS__KOAH_INFO_SLACK_URL) return;
   const active = inFlight.get(signup.email);
   if (active) return active;
   const task = deliver(signup, env, fetcher);
   inFlight.set(signup.email, task);
-  try { await task; }
-  finally { inFlight.delete(signup.email); }
+  try {
+    await task;
+  } finally {
+    inFlight.delete(signup.email);
+  }
 }
 
 async function deliver(signup: Signup, env: Environment, fetcher: typeof fetch) {
   try {
     const webhook = new URL(env.SETTINGS__KOAH_INFO_SLACK_URL!);
-    if (webhook.protocol !== "https:" || webhook.hostname !== "hooks.slack.com" || !webhook.pathname.startsWith("/services/") || webhook.username || webhook.password) {
+    if (
+      webhook.protocol !== "https:" ||
+      webhook.hostname !== "hooks.slack.com" ||
+      !webhook.pathname.startsWith("/services/") ||
+      webhook.username ||
+      webhook.password
+    ) {
       console.error("Sidequest waitlist: invalid Slack webhook configuration");
       return;
     }
-    const call = (path: string, method = "GET", data?: object) => fetcher(`${API}/${path}`, {
-      method,
-      headers: { Authorization: `Bearer ${env.LOOPS_API_KEY}`, "Content-Type": "application/json" },
-      body: data ? JSON.stringify(data) : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
+    const call = (path: string, method = "GET", data?: object) =>
+      fetcher(`${API}/${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${env.LOOPS_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: data ? JSON.stringify(data) : undefined,
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+      });
     // Recheck persisted state because a previous request may already have sent it.
     const found = await call(`contacts/find?email=${encodeURIComponent(signup.email)}`);
-    if (!found.ok) { console.error("Sidequest waitlist: Slack contact lookup failed", found.status); return; }
+    if (!found.ok) {
+      console.error("Sidequest waitlist: Slack contact lookup failed", found.status);
+      return;
+    }
     const contacts = await found.json();
-    if (!Array.isArray(contacts)) { console.error("Sidequest waitlist: invalid Slack contact lookup"); return; }
+    if (!Array.isArray(contacts)) {
+      console.error("Sidequest waitlist: invalid Slack contact lookup");
+      return;
+    }
     if (contacts[0]?.muxWaitlistSlackNotified !== false) return;
 
     const sent = await fetcher(webhook.toString(), {
@@ -58,9 +81,14 @@ async function deliver(signup: Signup, env: Environment, fetcher: typeof fetch) 
     for (const delay of [0, 250, 750]) {
       if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
       try {
-        const marked = await call("contacts/update", "PUT", { email: signup.email, muxWaitlistSlackNotified: true });
+        const marked = await call("contacts/update", "PUT", {
+          email: signup.email,
+          muxWaitlistSlackNotified: true,
+        });
         if (marked.ok && (await marked.json()).success === true) return;
-      } catch { /* Retry transient marker failures without exposing details. */ }
+      } catch {
+        /* Retry transient marker failures without exposing details. */
+      }
     }
     console.error("Sidequest waitlist: Slack delivery marker save failed after retries");
   } catch {

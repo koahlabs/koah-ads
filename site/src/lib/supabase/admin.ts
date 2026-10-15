@@ -9,8 +9,11 @@ function adminClient() {
   if (client) return client;
   const url = getSupabaseConfig()?.url;
   const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) throw new Error("Sidequest needs the Supabase URL, a publishable key and SUPABASE_SECRET_KEY.");
-  return client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  if (!url || !key)
+    throw new Error("Sidequest needs the Supabase URL, a publishable key and SUPABASE_SECRET_KEY.");
+  return (client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  }));
 }
 
 async function rpc(fn: string, args: Record<string, string | null>) {
@@ -31,6 +34,11 @@ export function deviceStore(): DeviceStore {
       return taken ? { status: taken.status, userId: taken.user_id } : null;
     },
     startDevice: ({ keyHash, userCode, ip, location }) =>
-      rpc("sidequest_start_device", { p_key_hash: keyHash, p_user_code: userCode, p_ip: ip, p_location: location }),
+      rpc("sidequest_start_device", {
+        p_key_hash: keyHash,
+        p_user_code: userCode,
+        p_ip: ip,
+        p_location: location,
+      }),
   };
 }

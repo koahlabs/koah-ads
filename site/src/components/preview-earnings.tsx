@@ -12,5 +12,9 @@ export function PreviewEarnings() {
 }
 
 export function PreviewAdCredit() {
-  return <span className="preview-ad-credit" aria-hidden="true">+$0.01</span>;
+  return (
+    <span className="preview-ad-credit" aria-hidden="true">
+      +$0.01
+    </span>
+  );
 }

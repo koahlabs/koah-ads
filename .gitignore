@@ -1,3 +1,4 @@
 .DS_Store
 plugin/.claude-plugin/types/
 .vercel
+node_modules

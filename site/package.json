@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
     "test": "node --experimental-strip-types --test scripts/*.test.mjs",
     "loops:setup": "node --env-file=.env.local scripts/setup-loops.mjs",
     "loops:auth-setup": "node --env-file=.env.local scripts/setup-auth-email.mjs",
@@ -29,8 +28,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "^16.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

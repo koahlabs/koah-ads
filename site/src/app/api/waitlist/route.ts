@@ -19,14 +19,15 @@ export async function POST(request: Request) {
     env.SETTINGS__KOAH_INFO_SLACK_URL
       ? (signup) => after(() => notifyWaitlistSignup(signup, env))
       : undefined,
-    () => after(async () => {
-      try {
-        // Pass the original request for Vercel's session context. Never send email
-        // addresses or signup identifiers as custom event properties.
-        await track("waitlist_signup", { source: "waitlist_form" }, { request });
-      } catch {
-        console.error("Sidequest waitlist: analytics tracking failed");
-      }
-    }),
+    () =>
+      after(async () => {
+        try {
+          // Pass the original request for Vercel's session context. Never send email
+          // addresses or signup identifiers as custom event properties.
+          await track("waitlist_signup", { source: "waitlist_form" }, { request });
+        } catch {
+          console.error("Sidequest waitlist: analytics tracking failed");
+        }
+      }),
   );
 }

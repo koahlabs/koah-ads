@@ -5,7 +5,12 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   async headers() {
-    return [{ source: "/connect", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }] }];
+    return [
+      {
+        source: "/connect",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }],
+      },
+    ];
   },
 };
 

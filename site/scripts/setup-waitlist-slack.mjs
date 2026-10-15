@@ -7,13 +7,16 @@ if (!response.ok) throw new Error(`Loops property lookup failed: ${response.stat
 const properties = await response.json();
 if (!Array.isArray(properties)) throw new Error("Invalid Loops property response.");
 const existing = properties.find((property) => property.key === "muxWaitlistSlackNotified");
-if (existing && existing.type !== "boolean") throw new Error("The Slack delivery property has an incompatible type.");
+if (existing && existing.type !== "boolean")
+  throw new Error("The Slack delivery property has an incompatible type.");
 if (!existing) {
   const created = await fetch(url, {
-    method: "POST", headers,
+    method: "POST",
+    headers,
     body: JSON.stringify({ name: "muxWaitlistSlackNotified", type: "boolean" }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!created.ok || (await created.json()).success !== true) throw new Error(`Loops property creation failed: ${created.status}`);
+  if (!created.ok || (await created.json()).success !== true)
+    throw new Error(`Loops property creation failed: ${created.status}`);
 }
 console.log("The Loops Slack delivery property is ready. No email or Slack message was sent.");

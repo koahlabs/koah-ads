@@ -9,15 +9,24 @@ import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 import { isGoogleSignInAvailable } from "@/lib/supabase/config";
 
-export const metadata: Metadata = { title: "Connect Sidequest | Sidequest", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Connect Sidequest | Sidequest",
+  robots: { index: false, follow: false },
+};
 
 export default async function ConnectPage() {
   const supabase = await createClient({ readOnly: true });
   const user = (await supabase?.auth.getUser().catch(() => null))?.data.user;
   return (
     <main id="main-content" className="site-shell auth-page">
-      <header className="intro-heading"><div className="wordmark"><BrandLink /></div></header>
-      <Link className="legal-back" href="/"><Icon name="arrow-left" /> Back to Sidequest</Link>
+      <header className="intro-heading">
+        <div className="wordmark">
+          <BrandLink />
+        </div>
+      </header>
+      <Link className="legal-back" href="/">
+        <Icon name="arrow-left" /> Back to Sidequest
+      </Link>
       <section className="auth-content" aria-labelledby="connect-heading">
         <h1 id="connect-heading">Connect Sidequest</h1>
         {user ? (
@@ -30,8 +39,14 @@ export default async function ConnectPage() {
           <>
             <p>Sign in to connect Claude Code.</p>
             <div className="sign-in-card">
-              <AuthForm mode="sign-in" available={!!supabase && await isGoogleSignInAvailable()} destination="connect" />
-              <div className="auth-divider"><span>or</span></div>
+              <AuthForm
+                mode="sign-in"
+                available={!!supabase && (await isGoogleSignInAvailable())}
+                destination="connect"
+              />
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
               <EmailSignInForm available={!!supabase} destination="connect" />
             </div>
           </>
