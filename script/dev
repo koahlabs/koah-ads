@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Runs local Sidequest: Supabase (with Mailpit) and the site on :3001.
+# Ctrl-C stops the site and Supabase. Local data survives; `--reset` wipes it.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+bun install
+(cd site && bun install)
+cd site
+
+# A site left over from an earlier run holds the port.
+lsof -ti tcp:3001 | xargs kill 2>/dev/null || true
+
+trap 'supabase stop' EXIT
+supabase start
+[[ "${1:-}" == "--reset" ]] && supabase db reset
+
+eval "$(supabase status -o env 2>/dev/null | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY|MAILPIT_URL|STUDIO_URL|DB_URL)=')"
+
+[[ -f .env.local ]] || cp .env.example .env.local
+set_env() {
+  if grep -q "^$1=" .env.local; then
+    sed -i '' "s|^$1=.*|$1=$2|" .env.local
+  else
+    echo "$1=$2" >>.env.local
+  fi
+}
+set_env NEXT_PUBLIC_SUPABASE_URL "$API_URL"
+set_env NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY "$PUBLISHABLE_KEY"
+set_env SUPABASE_SECRET_KEY "$SECRET_KEY"
+set_env KOAH_API_URL http://localhost:3000
+
+grep -qE '^KOAH_SERVING_TOKEN=.+' .env.local && grep -qE '^KOAH_PUBLISHER_ID=.+' .env.local ||
+  echo "WARN: set KOAH_SERVING_TOKEN and KOAH_PUBLISHER_ID in site/.env.local (README step 2)."
+grep -qE '^FLAGS=.+' .env.local || echo "WARN: set FLAGS in site/.env.local, or sign-in stays off."
+curl -sf http://localhost:3000/up >/dev/null || echo "WARN: Koah is not up on :3000. Run koah-server."
+
+cat <<EOF
+
+Site:     http://localhost:3001
+Connect:  http://localhost:3001/connect
+Mailpit:  $MAILPIT_URL  (sign-in emails)
+Studio:   $STUDIO_URL  (Supabase tables, users, bans)
+Database: $DB_URL
+Koah:     http://localhost:3000  (publisher dashboard, queries)
+Plugin:   claude --plugin-dir plugin --settings '{"env":{"SIDEQUEST_URL":"http://localhost:3001"}}'
+
+EOF
+bun dev
