@@ -281,9 +281,10 @@ test("counts a newly saved signup without a Slack webhook and before welcome del
     { body: { success: true } },
     { body: { success: true } },
   ]);
-  const response = await handleWaitlist(request(signup), env, mock.fetch, undefined, () => {
+  const response = await handleWaitlist(request(signup), env, mock.fetch, undefined, (lead) => {
     events++;
     assert.equal(mock.calls.length, 2, "the contact must be stored before counting the signup");
+    assert.deepEqual(lead, { email: "hello@example.com" });
   });
   assert.equal(response.status, 200);
   assert.equal(events, 1);

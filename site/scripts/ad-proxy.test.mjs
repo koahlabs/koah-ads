@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   deviceConnectionStatus,
+  fetchUserEarnings,
   generateUserCode,
   handleAdRequest,
   handleImpression,
@@ -86,6 +87,21 @@ test("forwards the question to Koah for the signed-in user and returns the impre
     context: { type: "conversation", question: "How do I rebase?" },
     demo: false,
   });
+});
+test("fetches a user's daily earnings from Koah with the serving token", async () => {
+  const earnings = [{ date: "2026-10-16", impressions: 1, revenueCents: 2 }];
+  const mock = deps([{ body: { earnings } }]);
+  assert.deepEqual(await fetchUserEarnings(mock, "user-1", "2026-10-01", "2026-10-16"), earnings);
+  assert.equal(
+    mock.calls[0].url,
+    "https://koah.example/api/v1/server/users/user-1/earnings?starts_at=2026-10-01&ends_at=2026-10-16",
+  );
+  assert.equal(mock.calls[0].method, "GET");
+  assert.equal(mock.calls[0].headers.Authorization, "Bearer serving-token");
+});
+test("fails when Koah rejects the earnings request", async () => {
+  const mock = deps([{ status: 422 }]);
+  await assert.rejects(fetchUserEarnings(mock, "user-1", "2026-10-16", "2026-10-01"));
 });
 test("returns no fill without calling Koah once the daily limit is used", async () => {
   const mock = {

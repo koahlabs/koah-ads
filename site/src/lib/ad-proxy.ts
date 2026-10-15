@@ -1,4 +1,5 @@
 import { createHash, randomInt } from "node:crypto";
+import type { KoahEarning } from "./dashboard.ts";
 import { formatUserCode, USER_CODE_ALPHABET, USER_CODE_LENGTH } from "./user-code.ts";
 
 type Environment = Record<string, string | undefined>;
@@ -77,9 +78,9 @@ async function authenticate(request: Request, store: Pick<DeviceStore, "findDevi
   return device?.status === "connected" && device.userId ? device.userId : unauthorized();
 }
 
-function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object) {
+function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object, method = "POST") {
   return fetcher(`${env.KOAH_API_URL || "https://app.koah.ai"}/api/v1/server/${path}`, {
-    method: "POST",
+    method,
     headers: {
       Authorization: `Bearer ${env.KOAH_SERVING_TOKEN}`,
       "Content-Type": "application/json",
@@ -88,6 +89,23 @@ function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object)
     cache: "no-store",
     signal: AbortSignal.timeout(10000),
   });
+}
+
+export async function fetchUserEarnings(
+  koah: Koah,
+  userId: string,
+  startsAt: string,
+  endsAt: string,
+) {
+  const response = await koahRequest(
+    koah,
+    `users/${userId}/earnings?starts_at=${startsAt}&ends_at=${endsAt}`,
+    undefined,
+    "GET",
+  );
+  if (response.status !== 200) throw new Error(`Koah earnings responded ${response.status}`);
+  const { earnings } = (await response.json()) as { earnings: KoahEarning[] };
+  return earnings;
 }
 
 function text(value: unknown, max: number) {

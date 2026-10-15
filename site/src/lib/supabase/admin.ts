@@ -5,7 +5,7 @@ import { getSupabaseConfig } from "@/lib/supabase/config";
 
 let client: SupabaseClient | undefined;
 
-function adminClient() {
+export function adminClient() {
   if (client) return client;
   const url = getSupabaseConfig()?.url;
   const key = process.env.SUPABASE_SECRET_KEY;

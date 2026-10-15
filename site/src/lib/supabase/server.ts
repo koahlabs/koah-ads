@@ -24,3 +24,9 @@ export async function createClient({ readOnly = false }: { readOnly?: boolean } 
     },
   });
 }
+
+export async function signedInClient() {
+  const supabase = await createClient();
+  const user = (await supabase?.auth.getUser().catch(() => null))?.data.user;
+  return supabase && user ? { supabase, user } : null;
+}

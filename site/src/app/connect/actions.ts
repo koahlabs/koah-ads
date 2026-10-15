@@ -5,7 +5,7 @@ import { clientIp } from "@/lib/ad-proxy";
 import { authMessages, canSignIn } from "@/lib/auth-policy";
 import { signInEnabled } from "@/lib/feature-flags";
 import { normalizeUserCode } from "@/lib/user-code";
-import { createClient } from "@/lib/supabase/server";
+import { signedInClient } from "@/lib/supabase/server";
 
 export type PendingRequest = {
   code: string;
@@ -26,20 +26,21 @@ const failed = (code?: string) =>
     : "We could not connect this computer. Please try again.";
 
 // Accounts can be created through Supabase's public auth API, so the invite rule is enforced here too.
-async function signedInClient() {
-  const supabase = await createClient();
-  const user = (await supabase?.auth.getUser().catch(() => null))?.data.user;
-  if (!supabase || !user) return sessionEnded;
-  return canSignIn(user.email, await signInEnabled()) ? supabase : authMessages.invite_only;
+async function allowedClient() {
+  const signedIn = await signedInClient();
+  if (!signedIn) return sessionEnded;
+  return canSignIn(signedIn.user.email, await signInEnabled())
+    ? signedIn
+    : authMessages.invite_only;
 }
 
 export async function lookupCode(_previous: LookupState, formData: FormData): Promise<LookupState> {
   const code = normalizeUserCode(formData.get("code"));
   if (!code) return { message: invalid, request: null };
-  const supabase = await signedInClient();
-  if (typeof supabase === "string") return { message: supabase, request: null };
+  const signedIn = await allowedClient();
+  if (typeof signedIn === "string") return { message: signedIn, request: null };
   const visitorIp = clientIp(await headers());
-  const { data, error } = await supabase.rpc("sidequest_pending_device", {
+  const { data, error } = await signedIn.supabase.rpc("sidequest_pending_device", {
     p_user_code: code,
     p_visitor_ip: visitorIp,
   });
@@ -64,9 +65,11 @@ export async function confirmCode(
 ): Promise<ConfirmState> {
   const code = normalizeUserCode(formData.get("code"));
   if (!code) return { message: invalid, connected: false };
-  const supabase = await signedInClient();
-  if (typeof supabase === "string") return { message: supabase, connected: false };
-  const { data, error } = await supabase.rpc("sidequest_confirm_device", { p_user_code: code });
+  const signedIn = await allowedClient();
+  if (typeof signedIn === "string") return { message: signedIn, connected: false };
+  const { data, error } = await signedIn.supabase.rpc("sidequest_confirm_device", {
+    p_user_code: code,
+  });
   if (error) return { message: failed(error.code), connected: false };
   return data
     ? { message: "Connected. Return to Claude Code.", connected: true }

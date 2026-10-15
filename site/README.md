@@ -42,7 +42,7 @@ The event has only `source: "waitlist_form"` as custom data. It sends no email a
 
 This is the count of newly stored signups after this code is deployed, not the historical Loops waitlist total. Analytics delivery is best effort, and concurrent submissions for the same new address can race before the first contact save becomes visible. Use Loops for the authoritative waitlist total. On deployments protected by Vercel Authentication or a password, server events need Vercel's `VERCEL_AUTOMATION_BYPASS_SECRET`; the SDK uses it automatically when configured. Public production deployments need no additional analytics secret.
 
-New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 📧 for the normalized email and 🗓️ for the first join date. Account sign-ins do not send messages.
+New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 🔢 for the lead number and 📧 for the normalized email. Account sign-ins do not send messages.
 
 1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
 2. Run `bun run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
@@ -51,6 +51,27 @@ New **waitlist** signups send an incoming-webhook message to **#koah-info**, hea
 After Loops saves the signup, Next.js `after` sends the notification in the background. Welcome-email failures do not stop the Slack notification, and Slack failures do not change the signup response. Successful delivery saves the marker in Loops, so later submissions do not send another message. Pending notifications retry if the address submits the form again. Contacts enrolled before this integration, with no notification marker, do not send old signup messages.
 
 Incoming webhooks do not provide an idempotency key. Same-instance concurrent sends are deduplicated, but simultaneous requests across server instances or a failed delivery-marker write can still produce a duplicate. The code retries marker writes without repeating the Slack POST. Provider failures log only stages and status codes, never addresses or webhook URLs.
+
+### Lead numbers, including the existing waitlist
+
+Apply `supabase/migrations/202610160002_waitlist_lead_numbers.sql` and set `SUPABASE_SECRET_KEY` in the server environment. Only the service role can use the counter. Browser sessions cannot read or change it.
+
+Export the current Loops audience as CSV with the `email` and `muxWaitlistJoinedAt` columns. Loops CLI 0.12.0 can find individual contacts but does not provide a bulk contact export or waitlist count. The import includes only contacts with a Sidequest first-join date, normalizes and deduplicates emails, and orders the existing leads by that date. It sends only email hashes to Supabase.
+
+```bash
+bun run slack:seed-leads /path/to/loops-export.csv --dry-run
+bun run slack:seed-leads /path/to/loops-export.csv
+```
+
+The first import gives the existing waitlist its lead numbers. Registration is refused until this import runs. Each new lead receives the next number. Retries and duplicate requests reuse the same number, including across server instances. The import can run again without renumbering known leads. The counter registers new stored leads even when Slack is disabled. If the counter is unavailable, Slack still reports the signup with **Lead number: unavailable**. Reimport a current Loops export after a counter outage to include any leads stored during that outage.
+
+For example:
+
+```text
+⚔️ Sidequest — new waitlist signup
+🔢 Lead #42
+📧 Email: hello@example.com
+```
 
 ## Checks
 
@@ -93,7 +114,7 @@ Run `bun run loops:auth-setup` to publish the dedicated white-background, black-
 The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`. Public Supabase settings are configured locally and in Vercel's Production, Preview, and Development environments. Store the Google client secret only in Supabase's Google provider settings.
 
 1. Open the existing Supabase organization through its Vercel Marketplace installation. Create a Supabase project if the organization has none.
-2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Sign-in does not use database passwords, a secret key, or a service-role key; only the ad proxy below reads `SUPABASE_SECRET_KEY`.
+2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Authentication uses only these public keys. The ad proxy, Stripe connections, and the waitlist counter use the server-only `SUPABASE_SECRET_KEY`.
 3. Production and Preview get these public settings from the integration. Local values are in the root README.
 4. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev` and allow `https://getsidequest.dev/auth/callback`, `https://getsidequest.dev/auth/callback/connect`, `https://mux-landing.vercel.app/auth/callback`, `https://mux-landing.vercel.app/auth/callback/connect`, `http://localhost:3001/auth/callback`, and `http://localhost:3001/auth/callback/connect`. Local Supabase allows the same two `localhost:3001` URLs in `supabase/config.toml`. Keep the `mux-landing.vercel.app` callback: Preview deployments have no `NEXT_PUBLIC_SITE_URL`, so `getAuthOrigin` builds their callback from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Production sets `NEXT_PUBLIC_SITE_URL=https://getsidequest.dev`; update it and this allowlist together if the domain changes.
 5. In Google Auth Platform, create a web OAuth client using the Supabase callback URL shown by **Authentication → Sign In / Providers → Google**. Enable the `openid`, email, and profile scopes. Configure the audience for the intended users.
@@ -123,6 +144,23 @@ Banning uses Supabase Auth's user ban. It blocks sign-in and makes every proxy r
 - Ban: `update auth.users set banned_until = '2999-01-01' where id = '<user id>';`. Unban with `banned_until = null`.
 - Find a user's devices: `select key_hash, created_at from sidequest_devices where user_id = '<user id>';`
 - Drop one device: `delete from sidequest_devices where key_hash = '<key hash>';`
+
+## Account dashboard
+
+The signed-in `/account` page shows impressions, earnings, daily activity, available balance, and payout history. Days use UTC. The page shows an unavailable state, not zeros, when the data source fails.
+
+1. Apply `supabase/migrations/202610160001_dashboard.sql`. It creates `sidequest_payouts`, `sidequest_stripe_accounts`, and the `sidequest_dashboard()` function. Users can read only their own rows. Only the service role can write them.
+2. Set `SUPABASE_SECRET_KEY`, `STRIPE_CONNECT_KEY`, and `STRIPE_CONNECT_COUNTRIES` as `.env.example` describes. Enable Connect and Accounts v2 on the Stripe platform. Check that each listed country supports USD payouts.
+3. Set `KOAH_SERVING_TOKEN` (and `KOAH_API_URL` outside production). The page reads daily impressions and earnings from Koah's `GET /api/v1/server/users/:user_id/earnings`, from the sign-up date to today. The user ID is the Supabase user ID that the ad proxy sends to Koah.
+4. Record each payout in `sidequest_payouts` with a unique `provider_reference`. Mark it `paid` only after the provider confirms it. Failed payouts do not reduce the balance.
+
+To see the page locally, run `bun dev`, sign in, and insert rows into `sidequest_payouts` with the local database. Earnings come from the local Koah server.
+
+The balance is Koah earnings in cents minus paid and pending payouts. The page shows a negative balance as zero. A user can connect Stripe only when the balance is above $10.00. A balance of $10.00 stays locked and $10.01 unlocks. The server action checks the balance again and takes only the country from the browser.
+
+The server creates an Accounts v2 recipient with an Express dashboard, then opens Stripe-hosted onboarding. It reserves an idempotency key before it creates the account. Stripe can discard idempotency keys after 24 hours. For that reason, the server replaces the key of an unfinished reservation after 23 hours, or when the user selects another country. The Stripe mode (live or test) comes from the key prefix, and each mode has its own connection per user.
+
+Returning from Stripe does not mean the setup is complete. Each page load reads the account capabilities from Stripe. Incomplete accounts offer **Finish Stripe setup**. Active accounts offer a one-use Express login link. Before you enable live payouts, verify the Stripe account and payout webhooks in the payout service, and check the recipient capabilities before each transfer.
 
 ## Footer payout estimate
 

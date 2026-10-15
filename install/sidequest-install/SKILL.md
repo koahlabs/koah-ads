@@ -20,6 +20,11 @@ Do not install it silently.
 
 ## 1. Check Claude Code
 
+Sidequest needs mod support. See the
+[requirements](../../README.md#requirements) for the minimum versions. For
+Claude Desktop, follow [`../../docs/claude-desktop.md`](../../docs/claude-desktop.md).
+The desktop app and the CLI can have different versions.
+
 Run `claude --version`. The one-line `/plugin install ... --marketplace` form
 needs 2.1.275 or later; the two-command form in step 2 works on any version
 with plugin support. Run `claude plugin list` and look for `sidequest`. If it is

@@ -1,5 +1,13 @@
 import { isLocalHttp } from "../auth-policy.ts";
 
+export function parseSupabaseUrl(value: string) {
+  const parsed = new URL(value);
+  const local = process.env.NODE_ENV !== "production" && isLocalHttp(parsed);
+  if (parsed.protocol !== "https:" && !local)
+    throw new Error("The Supabase project URL must use HTTPS.");
+  return parsed;
+}
+
 export function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
@@ -15,10 +23,7 @@ export function getSupabaseConfig() {
       throw new Error("Use a Supabase publishable or anon key for sign-in.");
     }
   }
-  const parsed = new URL(url);
-  const local = process.env.NODE_ENV !== "production" && isLocalHttp(parsed);
-  if (parsed.protocol !== "https:" && !local)
-    throw new Error("The Supabase project URL must use HTTPS.");
+  parseSupabaseUrl(url);
   return { url, key };
 }
 
