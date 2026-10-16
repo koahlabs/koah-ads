@@ -227,6 +227,28 @@ test("resumes a connection left pending by a restart", async ($, on) => {
   expect(toasts).toEqual(["Sidequest connected as ada@example.com."]);
 });
 
+test("the first session with no key starts a connection and shows the code", async ($, on) => {
+  const { calls, toasts, statuses, opened, clock } = world(on);
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await clock.settle();
+
+  expect(calls.filter((c) => c.method === "POST" && c.url === `${SITE}/api/device`)).toHaveLength(
+    1,
+  );
+  expect(opened).toContainEqual(["open", `${SITE}/connect`]);
+  expect(toasts[0]).toContain("BCDF-GHJK");
+  expect(statuses.at(-1)).toContain(`${SITE}/connect and enter code BCDF-GHJK`);
+});
+
+test("a later session with no key only reminds the user to run /sidequest-connect", async ($, on) => {
+  const { calls, toasts, clock } = world(on, { store: { autoConnectTried: true } });
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await clock.settle();
+
+  expect(calls).toHaveLength(0);
+  expect(toasts).toEqual(["sidequest: run /sidequest-connect to link your account"]);
+});
+
 test("ignores a SIDEQUEST_URL set only in project settings", async ($, on) => {
   const { calls } = world(on, { projectEnv: { SIDEQUEST_URL: "http://localhost:3001" } });
   await connect($);

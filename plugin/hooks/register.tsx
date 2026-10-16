@@ -7,12 +7,17 @@ const MAX_TEXT = 4000;
 const MAX_SLOTS = 50;
 const SITE = "https://getsidequest.dev";
 const POLL_MS = 1000;
+const NOT_CONNECTED = "sidequest: run /sidequest-connect to link your account";
+const TOO_MANY = "Too many connection attempts from this network. Try again in 10 minutes.";
+const NEVER_ENTER = "Never enter a code you didn't get from this terminal.";
+const codeNotice = (link: string, userCode: string) =>
+  `sidequest: open ${link} and enter code ${userCode}. ${NEVER_ENTER}`;
 
 const slots = atom({ plugin: "sidequest", key: "slots" } as const, [] as AdSlot[]);
 const isOff = atom({ plugin: "sidequest", key: "isOff" } as const, false);
 
 type Options = { demo?: boolean };
-type Pending = { key: string; expiresAt: number };
+type Pending = { key: string; expiresAt: number; userCode?: string };
 
 let opts: Options = {};
 let siteOnce: Promise<string> | undefined;
@@ -70,12 +75,37 @@ function newDeviceKey(): string {
   return `sq_${b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
 }
 
+type Started = { error: string } | { link: string; userCode: string };
+
+// Starts a device connection and opens the connect page.
+async function startConnection($: EngineInterface): Promise<Started> {
+  const base = await site($);
+  const key = newDeviceKey();
+  const res = await $.http
+    .fetch(`${base}/api/device`, { method: "POST", headers: { Authorization: `Bearer ${key}` } })
+    .catch(() => undefined);
+  if (res?.status === 429) return { error: TOO_MANY };
+  if (res?.status !== 201)
+    return { error: "Sidequest could not start a connection. Try again later." };
+
+  const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string };
+  const pending = { key, expiresAt: Date.parse(expiresAt), userCode };
+  const link = `${base}/connect`;
+  await $.store.set("pending", pending);
+  await openBrowser($, link);
+  void pollConnection($, pending).catch(() => {});
+  return { link, userCode };
+}
+
 // Polls until the site confirms the pending key, refuses it, or it expires.
 // A newer /sidequest-connect replaces the stored key, which ends this poll.
-async function pollConnection($: EngineInterface, { key, expiresAt }: Pending) {
+// The code stays on the status line until the poll ends, also after a restart.
+async function pollConnection($: EngineInterface, { key, expiresAt, userCode }: Pending) {
   const base = await site($);
+  if (userCode) $.ui.status(codeNotice(`${base}/connect`, userCode));
   const finish = async (toast: string) => {
     await $.store.delete("pending");
+    $.ui.status(undefined);
     $.ui.toast(toast);
   };
 
@@ -181,7 +211,17 @@ export const register: Register = (on, options) => {
     const pending = await storedPending($);
     if (pending) void pollConnection($, pending).catch(() => {});
     else if (!(await storedDeviceKey($))) {
-      $.ui.toast("sidequest: run /sidequest-connect to link your account");
+      if (await $.store.get("autoConnectTried")) $.ui.toast(NOT_CONNECTED);
+      else {
+        await $.store.set("autoConnectTried", true);
+        void startConnection($)
+          .then((started) =>
+            "error" in started
+              ? $.ui.toast(started.error === TOO_MANY ? TOO_MANY : NOT_CONNECTED)
+              : $.ui.toast(codeNotice(started.link, started.userCode), { timeoutMs: 30000 }),
+          )
+          .catch(() => $.ui.toast(NOT_CONNECTED));
+      }
     }
     return next(e);
   });
@@ -193,24 +233,10 @@ export const register: Register = (on, options) => {
   });
 
   on("command.run", { command: "sidequest-connect" }, async ($) => {
-    const base = await site($);
-    const key = newDeviceKey();
-    const res = await $.http
-      .fetch(`${base}/api/device`, { method: "POST", headers: { Authorization: `Bearer ${key}` } })
-      .catch(() => undefined);
-    if (res?.status === 429) {
-      return { text: "Too many connection attempts from this network. Try again in 10 minutes." };
-    }
-    if (res?.status !== 201)
-      return { text: "Sidequest could not start a connection. Try again later." };
-
-    const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string };
-    const pending = { key, expiresAt: Date.parse(expiresAt) };
-    await $.store.set("pending", pending);
-    await openBrowser($, `${base}/connect`);
-    void pollConnection($, pending).catch(() => {});
+    const started = await startConnection($);
+    if ("error" in started) return { text: started.error };
     return {
-      text: `Open ${base}/connect and enter code **${userCode}**. Never enter a code you didn't get from this terminal.`,
+      text: `Open ${started.link} and enter code **${started.userCode}**. ${NEVER_ENTER}`,
     };
   });
 

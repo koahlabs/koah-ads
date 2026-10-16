@@ -80,21 +80,22 @@ If the `koah` marketplace is already added:
 
 ## Connect
 
-Run this once at the prompt:
+The first session after install starts the connection by itself. It opens
+[getsidequest.dev/connect](https://getsidequest.dev/connect) and shows a code in
+the status line. If the browser does not open, use the link in the message.
+
+1. Sign in on the connect page.
+2. Type the code that Claude Code shows.
+3. Check the request details and confirm.
+
+Claude Code then shows "Sidequest connected as <email>". The code expires after
+10 minutes. To get a new code, or to connect later, run this at the prompt:
 
 ```
 /sidequest-connect
 ```
 
-Then:
-
-1. Open [getsidequest.dev/connect](https://getsidequest.dev/connect) and sign in.
-2. Type the code that Claude Code shows in your terminal.
-3. Check the request details and confirm.
-
-Claude Code then shows "Sidequest connected as <email>". Until you connect, the
-mod requests no ads and shows a startup message that tells you to run
-`/sidequest-connect`. The code expires after 10 minutes.
+Until you connect, the mod requests no ads.
 
 Never enter a code that someone else sent you. Only enter a code shown in your
 own terminal.
@@ -164,7 +165,7 @@ email address or phone number.
 
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
-6. Run `/sidequest-connect` in Claude Code. The browser opens `localhost:3001/connect`.
+6. The first session opens `localhost:3001/connect` by itself. To start again, run `/sidequest-connect`.
    - Sign in with email. Google sign-in is off locally.
    - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".
