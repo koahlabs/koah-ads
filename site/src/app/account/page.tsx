@@ -27,6 +27,7 @@ export default async function AccountPage() {
         <h1 id="account-heading">{name}</h1>
         <p className="account-email">{user.email}</p>
         <p>You’re signed in. Sidequest is still in development.</p>
+        <p><Link href="/connect">Connect a computer</Link></p>
         <AuthForm mode="sign-out" />
       </section>
       <SiteFooter />

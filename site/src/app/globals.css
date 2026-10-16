@@ -351,7 +351,8 @@ h1, h2 { text-wrap: balance; }
 .sign-in-card .auth-form:not(.email-sign-in-form) .auth-feedback:empty { display: none; }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin-top: 20px; color: var(--muted); font-size: 14px; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.sign-in-content .email-sign-in-form { display: grid; gap: 12px; margin-top: 20px; text-align: left; }
+.email-sign-in-form { display: grid; gap: 12px; }
+.sign-in-content .email-sign-in-form { margin-top: 20px; text-align: left; }
 .email-sign-in-form label { font-size: 16px; line-height: 1.5; }
 .email-sign-in-form input { width: 100%; min-width: 0; min-height: 48px; padding: 0 14px; border: 1px solid var(--input-line); border-radius: 5px; background: var(--bg); color: var(--ink); font-size: 16px; }
 .email-sign-in-form input::placeholder { color: var(--muted); }
@@ -367,6 +368,17 @@ h1, h2 { text-wrap: balance; }
 .auth-feedback { min-height: 32px; padding-top: 8px; }
 .auth-feedback p { margin: 0; color: var(--error); font-size: 14px; line-height: 1.6; }
 .account-email { overflow-wrap: anywhere; }
+.connect-code-label { margin: 0; color: var(--muted); font-size: 14px; }
+.connect-code { margin: 4px 0 0; font-family: var(--font-geist-mono), monospace; font-size: 32px; font-weight: 600; letter-spacing: .15em; line-height: 1.3; }
+.connect-details { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 20px 0 0; font-size: 14px; line-height: 1.5; }
+.connect-details dt { color: var(--muted); }
+.connect-details dd { margin: 0; overflow-wrap: anywhere; }
+.connect-notice { margin: 16px 0 0; padding: 12px 14px; border: 1px solid var(--error); border-radius: 5px; color: var(--error); font-size: 14px; line-height: 1.6; }
+.connect-actions { display: flex; gap: 12px; margin-top: 24px; }
+.connect-actions .auth-button { flex: 1; min-width: 0; }
+@media (max-width: 480px) {
+  .connect-actions { flex-direction: column; }
+}
 .auth-page .site-footer { margin-top: 48px; }
 .sign-in-page .site-footer { grid-row: 3; align-self: end; margin-top: 0; }
 @media (hover: hover) and (pointer: fine) {

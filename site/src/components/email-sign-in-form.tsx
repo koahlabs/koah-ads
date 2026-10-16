@@ -2,11 +2,12 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { signInWithEmail } from "@/app/auth/actions";
+import type { AuthDestination } from "@/lib/auth-policy";
 import type { EmailSignInState } from "@/lib/email-sign-in";
 
 const initialState: EmailSignInState = { error: "", email: "", sent: false, retryAfter: 0 };
 
-export function EmailSignInForm({ available, initialError = "" }: { available: boolean; initialError?: string }) {
+export function EmailSignInForm({ available, initialError = "", destination = "account" }: { available: boolean; initialError?: string; destination?: AuthDestination }) {
   const [email, setEmail] = useState("");
   const [remaining, setRemaining] = useState(0);
   const [state, action, pending] = useActionState(async (previous: EmailSignInState, formData: FormData) => {
@@ -24,6 +25,7 @@ export function EmailSignInForm({ available, initialError = "" }: { available: b
   const sentToThisEmail = state.sent && email.trim().toLowerCase() === state.email;
   return (
     <form action={action} className="auth-form email-sign-in-form" aria-busy={pending}>
+      <input type="hidden" name="destination" value={destination} />
       <label htmlFor="sign-in-email">Email address</label>
       <input
         id="sign-in-email"

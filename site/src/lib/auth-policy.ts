@@ -12,6 +12,16 @@ export function getAuthErrorMessage(error: string | string[] | undefined) {
   return authMessages[error];
 }
 
+export type AuthDestination = "account" | "connect";
+
+export function getCallbackUrl(origin: string, destination?: unknown) {
+  return `${origin}/auth/callback${destination === "connect" ? "/connect" : ""}`;
+}
+
+export function isLocalHttp(url: URL) {
+  return url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+}
+
 export function getAuthOrigin(requestOrigin?: string) {
   const site = process.env.NEXT_PUBLIC_SITE_URL ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://getsidequest.dev");
@@ -20,7 +30,7 @@ export function getAuthOrigin(requestOrigin?: string) {
   if (process.env.NODE_ENV !== "production" && requestOrigin) {
     try {
       const local = new URL(requestOrigin);
-      if (local.protocol === "http:" && ["localhost", "127.0.0.1"].includes(local.hostname) && local.port === "3000") return local.origin;
+      if (isLocalHttp(local)) return local.origin;
     } catch { /* Use the configured site origin below. */ }
   }
   if (!productionOrigin.startsWith("https://")) throw new Error("The production site URL must use HTTPS.");
