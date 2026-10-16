@@ -2,6 +2,7 @@
   "name": "sidequest",
   "private": true,
   "scripts": {
+    "dev": "script/dev",
     "lint": "oxlint",
     "format": "oxfmt",
     "prepare": "lefthook install"

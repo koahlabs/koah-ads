@@ -128,35 +128,25 @@ email address or phone number.
 ## Local development
 
 1. Install Docker (OrbStack), the Supabase CLI, and Bun. Check out Koah locally and run `koah-server`. Koah uses port 3000.
-   Run `bun install` in the repo root. It installs the git hooks that format and lint staged files before each commit.
 2. Prepare local Koah:
    - Create a publisher for Sidequest.
    - In the local publisher dashboard, open Settings → Organization → API Keys. Create a key with the Serving scope.
    - Note the publisher external ID.
    - Add at least one active ad group that targets the `cli` inventory type. CLI requests match only ad groups that opt in to `cli`, so without one every request is a no-fill.
    - To skip inventory, set the plugin option `demo` to `true`. The plugin then shows a fixed sample ad.
-3. Start Supabase. This applies the migrations in `site/supabase/migrations`. `supabase db reset` applies them again and wipes local data.
+3. Run `bun dev` from the repo root. It does these steps:
+   - It installs packages and the git hooks that format and lint staged files before each commit.
+   - It starts Supabase and the Mailpit mail server, and applies the migrations in `site/supabase/migrations`.
+   - It creates `site/.env.local` if it does not exist, and writes the local Supabase and Koah URLs and keys to it.
+   - It starts the site on port 3001, because Koah uses port 3000.
 
-   ```
-   cd site
-   supabase start
-   ```
+   Ctrl-C stops the site and Supabase. Local data stays. `bun dev --reset` wipes local data and applies the migrations again.
 
-4. Copy `site/.env.example` to `site/.env.local`. Set these values:
-   - `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`: the publishable and secret keys from `supabase status`.
-   - `KOAH_API_URL=http://localhost:3000`
+4. In `site/.env.local`, set the values that the script cannot know. The script shows a warning for each value that is not set.
    - `KOAH_SERVING_TOKEN`: the Serving API key from step 2.
    - `KOAH_PUBLISHER_ID`: the publisher external ID from step 2.
    - `FLAGS`: a Vercel Flags SDK key for the Development environment. It lets the `sign-in-enabled` flag evaluate. List or create keys with `vercel flags sdk-keys ls`.
-5. Start the site on port 3001, because Koah uses port 3000.
-
-   ```
-   bun install
-   bun run dev -p 3001
-   ```
-
-6. From the repo root, start Claude Code with the plugin and the local site URL:
+5. From the repo root, start Claude Code with the plugin and the local site URL:
 
    ```
    claude --plugin-dir plugin --settings '{"env":{"SIDEQUEST_URL":"http://localhost:3001"}}'
@@ -164,12 +154,12 @@ email address or phone number.
 
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
-7. Run `/sidequest-connect` in Claude Code. The browser opens `localhost:3001/connect`.
+6. Run `/sidequest-connect` in Claude Code. The browser opens `localhost:3001/connect`.
    - Sign in with email. Google sign-in is off locally.
    - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".
    - Claude Code shows "Sidequest connected as <email>".
-8. Ask a question that matches your local `cli` inventory. The ad appears under the reply.
+7. Ask a question that matches your local `cli` inventory. The ad appears under the reply.
    - If no ad appears, open the queries in local Koah for the Sidequest publisher. `ad_id` 0 means no fill.
    - Local requests have no location, because they come from `::1`.
 
