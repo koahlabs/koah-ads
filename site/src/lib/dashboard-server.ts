@@ -1,7 +1,12 @@
 import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { fetchUserEarnings } from "@/lib/ad-proxy";
-import { dashboardFromSources, unavailableDashboard, type PayoutsRow } from "@/lib/dashboard";
+import {
+  dashboardFromSources,
+  unavailableDashboard,
+  type PayoutsRow,
+  type SetupStatus,
+} from "@/lib/dashboard";
 
 export async function getDashboard(
   supabase: SupabaseClient,
@@ -19,4 +24,9 @@ export async function getDashboard(
   } catch {
     return unavailableDashboard();
   }
+}
+
+export async function getSetupStatus(supabase: SupabaseClient): Promise<SetupStatus | null> {
+  const { data, error } = await supabase.rpc("sidequest_setup_status");
+  return error ? null : (data as SetupStatus);
 }

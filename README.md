@@ -166,6 +166,7 @@ email address or phone number.
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
 6. The first session opens `localhost:3001/connect` by itself. To start again, run `/sidequest-connect`.
+   - To test from scratch, quit Claude Code and run `bun run reset-plugin`. It deletes the plugin's saved device key and code, so the next session acts like a fresh install. To also start with a new site account, sign in with a new address such as `you+test1@koahlabs.com`, or run `bun dev --reset`.
    - Sign in with email. Google sign-in is off locally.
    - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".

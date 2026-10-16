@@ -6,7 +6,7 @@ import { signedInClient } from "@/lib/supabase/server";
 import { signInEnabled } from "@/lib/feature-flags";
 import { authMessages, canSignIn, getAuthOrigin } from "@/lib/auth-policy";
 import { canConnectStripe } from "@/lib/dashboard";
-import { getDashboard } from "@/lib/dashboard-server";
+import { getDashboard, getSetupStatus } from "@/lib/dashboard-server";
 import {
   createStripeLoginLink,
   createStripeOnboardingLink,
@@ -55,4 +55,10 @@ export async function connectStripe(
     return { error: "We could not connect to Stripe. Your balance has not changed. Try again." };
   }
   redirect(url);
+}
+
+export async function readSetupStatus() {
+  const signedIn = await signedInClient();
+  if (!signedIn || !canSignIn(signedIn.user.email, await signInEnabled())) return null;
+  return getSetupStatus(signedIn.supabase);
 }

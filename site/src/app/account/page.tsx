@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AccountDashboard } from "@/components/account-dashboard";
 import { createClient } from "@/lib/supabase/server";
-import { getDashboard } from "@/lib/dashboard-server";
+import { getDashboard, getSetupStatus } from "@/lib/dashboard-server";
 import { getStripeConfig, getStripeStatus } from "@/lib/stripe-connect-server";
 
 export const metadata: Metadata = {
@@ -26,9 +26,10 @@ export default async function AccountPage({
     typeof user.user_metadata.full_name === "string" && user.user_metadata.full_name.trim()
       ? user.user_metadata.full_name
       : user.email?.split("@")[0] || "Your account";
-  const [data, stripeStatus, query] = await Promise.all([
+  const [data, stripeStatus, setup, query] = await Promise.all([
     getDashboard(supabase, user),
     getStripeStatus(supabase, user.id),
+    getSetupStatus(supabase),
     searchParams,
   ]);
   const notice =
@@ -45,6 +46,7 @@ export default async function AccountPage({
       stripeStatus={stripeStatus}
       countries={getStripeConfig()?.countries || []}
       notice={notice}
+      setup={setup}
     />
   );
 }

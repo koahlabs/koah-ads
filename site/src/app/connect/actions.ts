@@ -72,6 +72,6 @@ export async function confirmCode(
   });
   if (error) return { message: failed(error.code), connected: false };
   return data
-    ? { message: "Connected. Return to Claude Code.", connected: true }
+    ? { message: "Connected. Taking you to your dashboard.", connected: true }
     : { message: invalid, connected: false };
 }

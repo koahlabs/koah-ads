@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { confirmCode, lookupCode } from "@/app/connect/actions";
 import {
   formatUserCode,
@@ -25,8 +26,15 @@ function CodeEntry({ onCancel }: { onCancel: () => void }) {
   });
   const [code, setCode] = useState("");
   const form = useRef<HTMLFormElement>(null);
+  const router = useRouter();
   const { request } = lookup;
   const message = confirm.message || lookup.message;
+
+  useEffect(() => {
+    if (!confirm.connected) return;
+    const timer = window.setTimeout(() => router.replace("/account"), 2000);
+    return () => window.clearTimeout(timer);
+  }, [confirm.connected, router]);
 
   function typeCode(input: string) {
     const letters = userCodeLetters(input).slice(0, USER_CODE_LENGTH);

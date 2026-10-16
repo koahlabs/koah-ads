@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "script/dev",
+    "reset-plugin": "script/reset-plugin",
     "lint": "oxlint",
     "format": "oxfmt",
     "prepare": "lefthook install"

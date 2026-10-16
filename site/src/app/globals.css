@@ -2112,3 +2112,90 @@ h2 {
     background: var(--button-hover);
   }
 }
+
+/* Account setup wizard. */
+.setup-steps {
+  display: grid;
+  gap: 32px;
+  max-width: 640px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 16px;
+}
+.setup-step.is-upcoming {
+  color: var(--muted);
+}
+.setup-marker {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--input-line);
+  border-radius: 50%;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.setup-step.is-current .setup-marker {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+.setup-step.is-done .setup-marker {
+  border: 0;
+}
+.setup-step-body h2 {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.setup-step-body p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.setup-step-body a:not(.auth-button) {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.setup-command {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 16px;
+}
+.setup-command code {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--input-line);
+  border-radius: 5px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.setup-command .auth-button {
+  min-width: 96px;
+}
+.setup-action {
+  width: auto;
+  min-width: 160px;
+  margin-top: 16px;
+}
+@media (max-width: 480px) {
+  .setup-command {
+    flex-direction: column;
+  }
+  .setup-command .auth-button {
+    min-height: 44px;
+  }
+}

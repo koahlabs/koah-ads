@@ -4,7 +4,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { AuthForm } from "@/components/auth-form";
 import { Icon } from "@/components/icon";
 import { DashboardContent } from "@/components/dashboard-content";
-import type { DashboardData, StripeStatus } from "@/lib/dashboard";
+import { SetupWizard } from "@/components/setup-wizard";
+import type { DashboardData, SetupStatus, StripeStatus } from "@/lib/dashboard";
 
 export function AccountDashboard({
   name,
@@ -13,6 +14,7 @@ export function AccountDashboard({
   stripeStatus,
   countries,
   notice,
+  setup,
 }: {
   name: string;
   email: string;
@@ -20,6 +22,7 @@ export function AccountDashboard({
   stripeStatus: StripeStatus;
   countries: string[];
   notice?: string;
+  setup: SetupStatus | null;
 }) {
   return (
     <div className="dashboard-page">
@@ -47,12 +50,16 @@ export function AccountDashboard({
         </div>
       </header>
       <main id="main-content" className="dashboard-main">
-        <DashboardContent
-          data={data}
-          stripeStatus={stripeStatus}
-          countries={countries}
-          notice={notice}
-        />
+        {setup && !setup.hasQueries ? (
+          <SetupWizard initial={setup} />
+        ) : (
+          <DashboardContent
+            data={data}
+            stripeStatus={stripeStatus}
+            countries={countries}
+            notice={notice}
+          />
+        )}
       </main>
       <div className="dashboard-footer">
         <SiteFooter />

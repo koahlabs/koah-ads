@@ -24,6 +24,7 @@ export type PayoutsRow = {
   pending_payout_cents: number;
   payouts: { id: string; date: string; amount_cents: number; status: Payout["status"] }[];
 };
+export type SetupStatus = { connected: boolean; hasQueries: boolean };
 export type StripeStatus = "not_connected" | "incomplete" | "connected" | "unavailable";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
