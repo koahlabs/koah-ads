@@ -3,6 +3,7 @@ export const authMessages: Record<string, string> = {
   callback: "We could not finish signing you in. Please try again.",
   provider: "Google sign-in is unavailable right now. Please try again.",
   session: "Your session has ended. Please sign in again.",
+  invite_only: "Sidequest is invite-only for now.",
   link: "This sign-in link has expired or was already used. Request a new link below.",
 };
 
@@ -10,6 +11,10 @@ export function getAuthErrorMessage(error: string | string[] | undefined) {
   if (error === undefined) return "";
   if (typeof error !== "string" || !Object.hasOwn(authMessages, error)) return authMessages.callback;
   return authMessages[error];
+}
+
+export function canSignIn(email: string | null | undefined, signInOpen: boolean) {
+  return signInOpen || !!email?.toLowerCase().endsWith("@koahlabs.com");
 }
 
 export type AuthDestination = "account" | "connect";

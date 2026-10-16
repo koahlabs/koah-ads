@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { BrandLink } from "@/components/brand-link";
 import { SiteFooter } from "@/components/site-footer";
 import { AuthForm } from "@/components/auth-form";
@@ -9,12 +8,10 @@ import { ConnectForm } from "@/components/connect-form";
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
 import { isGoogleSignInAvailable } from "@/lib/supabase/config";
-import { signInEnabled } from "@/lib/feature-flags";
 
 export const metadata: Metadata = { title: "Connect Sidequest | Sidequest", robots: { index: false, follow: false } };
 
 export default async function ConnectPage() {
-  if (!await signInEnabled()) redirect("/");
   const supabase = await createClient({ readOnly: true });
   const user = (await supabase?.auth.getUser().catch(() => null))?.data.user;
   return (

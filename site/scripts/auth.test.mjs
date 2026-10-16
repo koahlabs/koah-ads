@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAuthOrigin, authMessages, getAuthErrorMessage, getCallbackUrl } from "../src/lib/auth-policy.ts";
+import { getAuthOrigin, authMessages, getAuthErrorMessage, getCallbackUrl, canSignIn } from "../src/lib/auth-policy.ts";
 import { getSupabaseConfig, isGoogleSignInAvailable } from "../src/lib/supabase/config.ts";
 import { requestEmailSignIn } from "../src/lib/email-sign-in.ts";
 
@@ -86,7 +86,7 @@ test("email links support both new and existing accounts and use the app callbac
   const calls = [];
   const result = await requestEmailSignIn("  Person+Mux@Example.com  ", {
     signInWithOtp: async credentials => { calls.push(credentials); return { error: null }; },
-  }, "https://mux.example");
+  }, "https://mux.example", true);
   assert.deepEqual(calls, [{ email: "person+mux@example.com", options: { shouldCreateUser: true, emailRedirectTo: "https://mux.example/auth/callback" } }]);
   assert.equal(result.sent, true);
   assert.equal(result.error, "");
@@ -104,33 +104,49 @@ test("sign-in destinations map to fixed callback paths", () => {
 test("invalid email inputs never reach the email provider", async () => {
   const auth = { signInWithOtp: async () => { throw new Error("Must not send"); } };
   for (const value of [null, new Blob(["email@example.com"]), "", "person", "a@@example.com", "a@example..com", "a@example.com\r\nBcc: other@example.com", `${"a".repeat(65)}@example.com`, `a@${"b".repeat(250)}.com`]) {
-    const result = await requestEmailSignIn(value, auth, "https://mux.example");
+    const result = await requestEmailSignIn(value, auth, "https://mux.example", true);
     assert.equal(result.sent, false);
     assert.equal(result.error, "Enter a valid email address.");
   }
 });
 
 test("email service errors do not expose account or provider details", async () => {
-  const missing = await requestEmailSignIn("person@example.com", null, "https://mux.example");
+  const missing = await requestEmailSignIn("person@example.com", null, "https://mux.example", true);
   assert.equal(missing.sent, false);
   assert.match(missing.error, /unavailable/);
   for (const code of ["email_address_not_authorized", "user_not_found", "signup_disabled", "unexpected_failure"]) {
     const result = await requestEmailSignIn("person@example.com", {
       signInWithOtp: async () => ({ error: { code, message: "Private provider details" } }),
-    }, "https://mux.example");
+    }, "https://mux.example", true);
     assert.equal(result.sent, false);
     assert.equal(result.error, "We could not send the sign-in link. Try again or continue with Google.");
   }
-  const failed = await requestEmailSignIn("person@example.com", { signInWithOtp: async () => { throw new Error("Private network details"); } }, "https://mux.example");
+  const failed = await requestEmailSignIn("person@example.com", { signInWithOtp: async () => { throw new Error("Private network details"); } }, "https://mux.example", true);
   assert.equal(failed.sent, false);
   assert.doesNotMatch(failed.error, /Private/);
 });
 
 test("email provider rate limits return a cooldown and never a sent state", async () => {
   for (const error of [{ status: 429 }, { code: "over_email_send_rate_limit" }, { code: "over_request_rate_limit" }]) {
-    const result = await requestEmailSignIn("person@example.com", { signInWithOtp: async () => ({ error }) }, "https://mux.example");
+    const result = await requestEmailSignIn("person@example.com", { signInWithOtp: async () => ({ error }) }, "https://mux.example", true);
     assert.equal(result.sent, false);
     assert.equal(result.retryAfter, 60);
     assert.match(result.error, /wait a minute/);
   }
+});
+
+test("with the sign-in flag on anyone can sign in", () => {
+  assert.equal(canSignIn("a@gmail.com", true), true);
+});
+
+test("with the sign-in flag off only koahlabs.com emails can sign in", () => {
+  for (const email of ["a@koahlabs.com", "A@KOAHLABS.COM"]) assert.equal(canSignIn(email, false), true);
+  for (const email of ["a@gmail.com", "a@koahlabs.com.evil.com", "a@x.koahlabs.com", "", null, undefined]) assert.equal(canSignIn(email, false), false);
+});
+
+test("email sign-in refuses a non-koahlabs.com email when the flag is off", async () => {
+  const auth = { signInWithOtp: async () => { throw new Error("Must not send"); } };
+  const result = await requestEmailSignIn("person@gmail.com", auth, "https://mux.example", false);
+  assert.equal(result.sent, false);
+  assert.equal(result.error, authMessages.invite_only);
 });

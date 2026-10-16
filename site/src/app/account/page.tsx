@@ -6,12 +6,10 @@ import { SiteFooter } from "@/components/site-footer";
 import { AuthForm } from "@/components/auth-form";
 import { Icon } from "@/components/icon";
 import { createClient } from "@/lib/supabase/server";
-import { signInEnabled } from "@/lib/feature-flags";
 
 export const metadata: Metadata = { title: "Your account | Sidequest", robots: { index: false, follow: false } };
 
 export default async function AccountPage() {
-  if (!await signInEnabled()) redirect("/");
   const supabase = await createClient({ readOnly: true });
   if (!supabase) redirect("/sign-in");
   const result = await supabase.auth.getUser().catch(() => null);
