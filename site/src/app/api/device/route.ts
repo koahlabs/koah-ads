@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
-import { deviceConnectionStatus, reply, startDeviceConnection } from "@/lib/ad-proxy";
-import { signInEnabled } from "@/lib/feature-flags";
+import { deviceConnectionStatus, startDeviceConnection } from "@/lib/ad-proxy";
 import { deviceStore } from "@/lib/supabase/admin";
 
+// No sign-in flag check: a code only connects after a signed-in user confirms it, and sign-in is flag-gated.
 export async function POST(request: NextRequest) {
-  if (!await signInEnabled()) return reply({ error: "Sidequest sign-in is not available" }, 503);
   return startDeviceConnection(request, deviceStore());
 }
 

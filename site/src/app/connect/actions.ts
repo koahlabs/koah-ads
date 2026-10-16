@@ -2,6 +2,8 @@
 
 import { headers } from "next/headers";
 import { clientIp } from "@/lib/ad-proxy";
+import { authMessages, canSignIn } from "@/lib/auth-policy";
+import { signInEnabled } from "@/lib/feature-flags";
 import { normalizeUserCode } from "@/lib/user-code";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,17 +15,19 @@ const invalid = "That code is invalid or expired.";
 const sessionEnded = "Your session has ended. Sign in again.";
 const failed = (code?: string) => code === "P0429" ? "Too many attempts. Try again in an hour." : "We could not connect this computer. Please try again.";
 
+// Accounts can be created through Supabase's public auth API, so the invite rule is enforced here too.
 async function signedInClient() {
   const supabase = await createClient();
   const user = (await supabase?.auth.getUser().catch(() => null))?.data.user;
-  return user ? supabase : null;
+  if (!supabase || !user) return sessionEnded;
+  return canSignIn(user.email, await signInEnabled()) ? supabase : authMessages.invite_only;
 }
 
 export async function lookupCode(_previous: LookupState, formData: FormData): Promise<LookupState> {
   const code = normalizeUserCode(formData.get("code"));
   if (!code) return { message: invalid, request: null };
   const supabase = await signedInClient();
-  if (!supabase) return { message: sessionEnded, request: null };
+  if (typeof supabase === "string") return { message: supabase, request: null };
   const visitorIp = clientIp(await headers());
   const { data, error } = await supabase.rpc("sidequest_pending_device", { p_user_code: code, p_visitor_ip: visitorIp });
   if (error) return { message: failed(error.code), request: null };
@@ -38,7 +42,7 @@ export async function confirmCode(_previous: ConfirmState, formData: FormData): 
   const code = normalizeUserCode(formData.get("code"));
   if (!code) return { message: invalid, connected: false };
   const supabase = await signedInClient();
-  if (!supabase) return { message: sessionEnded, connected: false };
+  if (typeof supabase === "string") return { message: supabase, connected: false };
   const { data, error } = await supabase.rpc("sidequest_confirm_device", { p_user_code: code });
   if (error) return { message: failed(error.code), connected: false };
   return data ? { message: "Connected. Return to Claude Code.", connected: true } : { message: invalid, connected: false };

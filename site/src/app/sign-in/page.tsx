@@ -8,12 +8,10 @@ import { DitherBackground } from "@/components/dither-background";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthErrorMessage } from "@/lib/auth-policy";
 import { isGoogleSignInAvailable } from "@/lib/supabase/config";
-import { signInEnabled } from "@/lib/feature-flags";
 
 export const metadata: Metadata = { title: "Sign in | Sidequest", robots: { index: false, follow: false } };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
-  if (!await signInEnabled()) redirect("/");
   const { error } = await searchParams;
   const supabase = await createClient({ readOnly: true });
   let signedIn = false;

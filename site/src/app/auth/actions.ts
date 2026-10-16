@@ -11,15 +11,13 @@ import { signInEnabled } from "@/lib/feature-flags";
 export type AuthFormState = { error: string };
 
 export async function signInWithEmail(_previous: EmailSignInState, formData: FormData): Promise<EmailSignInState> {
-  if (!await signInEnabled()) return { error: "Sign-in is not available right now.", email: "", sent: false, retryAfter: 0 };
   const requestHeaders = await headers();
   const origin = getAuthOrigin(requestHeaders.get("origin") || undefined);
   const supabase = await createClient();
-  return requestEmailSignIn(formData.get("email"), supabase?.auth || null, origin, formData.get("destination"));
+  return requestEmailSignIn(formData.get("email"), supabase?.auth || null, origin, await signInEnabled(), formData.get("destination"));
 }
 
 export async function signInWithGoogle(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  if (!await signInEnabled()) return { error: "Sign-in is not available right now." };
   const supabase = await createClient();
   if (!supabase) return { error: "Sign-in is not available yet. Please try again later." };
   if (!await isGoogleSignInAvailable()) return { error: "Google sign-in is unavailable right now. Please try again." };
@@ -47,5 +45,5 @@ export async function signOut(): Promise<AuthFormState> {
       return { error: "We could not sign you out. Please try again." };
     }
   }
-  redirect(await signInEnabled() ? "/sign-in" : "/");
+  redirect("/sign-in");
 }
