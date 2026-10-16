@@ -9,7 +9,8 @@ export const authMessages: Record<string, string> = {
 
 export function getAuthErrorMessage(error: string | string[] | undefined) {
   if (error === undefined) return "";
-  if (typeof error !== "string" || !Object.hasOwn(authMessages, error)) return authMessages.callback;
+  if (typeof error !== "string" || !Object.hasOwn(authMessages, error))
+    return authMessages.callback;
   return authMessages[error];
 }
 
@@ -28,16 +29,22 @@ export function isLocalHttp(url: URL) {
 }
 
 export function getAuthOrigin(requestOrigin?: string) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://getsidequest.dev");
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "https://getsidequest.dev");
   const productionOrigin = new URL(site).origin;
   // Local development must return to this browser's local app, not the live website.
   if (process.env.NODE_ENV !== "production" && requestOrigin) {
     try {
       const local = new URL(requestOrigin);
       if (isLocalHttp(local)) return local.origin;
-    } catch { /* Use the configured site origin below. */ }
+    } catch {
+      /* Use the configured site origin below. */
+    }
   }
-  if (!productionOrigin.startsWith("https://")) throw new Error("The production site URL must use HTTPS.");
+  if (!productionOrigin.startsWith("https://"))
+    throw new Error("The production site URL must use HTTPS.");
   return productionOrigin;
 }

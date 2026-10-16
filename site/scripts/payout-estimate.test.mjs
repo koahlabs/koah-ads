@@ -1,8 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { estimatedPayoutCents, payoutDigits, koahPayoutEstimate } from "../src/lib/payout-estimate.ts";
+import {
+  estimatedPayoutCents,
+  payoutDigits,
+  koahPayoutEstimate,
+} from "../src/lib/payout-estimate.ts";
 
-const model = { impressions: 1_000, periodStart: "2026-10-04T00:00:00Z", periodEnd: "2026-10-05T00:00:00Z", cpmCents: 1_500, sharePercent: 70 };
+const model = {
+  impressions: 1_000,
+  periodStart: "2026-10-04T00:00:00Z",
+  periodEnd: "2026-10-05T00:00:00Z",
+  cpmCents: 1_500,
+  sharePercent: 70,
+};
 const end = Date.parse(model.periodEnd);
 
 test("$15 CPM with a 70% share pays $10.50 per 1,000 modeled impressions", () => {
@@ -17,14 +27,21 @@ test("the epoch model grows at the measured pace across reloads and time zones",
 });
 
 test("the measured seven-day baseline and its daily extension retain cent precision", () => {
-  const end = Date.parse(koahPayoutEstimate.periodEnd);
-  assert.equal(estimatedPayoutCents(koahPayoutEstimate, end), 2_202_680);
-  assert.equal(estimatedPayoutCents(koahPayoutEstimate, end + 86_400_000), 2_517_349);
+  const seriesEnd = Date.parse(koahPayoutEstimate.periodEnd);
+  assert.equal(estimatedPayoutCents(koahPayoutEstimate, seriesEnd), 2_202_680);
+  assert.equal(estimatedPayoutCents(koahPayoutEstimate, seriesEnd + 86_400_000), 2_517_349);
 });
 
 test("a zero-impression period stays at zero and malformed models fail", () => {
   assert.equal(estimatedPayoutCents({ ...model, impressions: 0 }, end + 86_400_000), 0);
-  for (const invalid of [{ periodEnd: model.periodStart }, { impressions: -1 }, { impressions: 1.5 }, { cpmCents: -1 }, { sharePercent: 101 }, { periodStart: "invalid" }]) {
+  for (const invalid of [
+    { periodEnd: model.periodStart },
+    { impressions: -1 },
+    { impressions: 1.5 },
+    { cpmCents: -1 },
+    { sharePercent: 101 },
+    { periodStart: "invalid" },
+  ]) {
     assert.throws(() => estimatedPayoutCents({ ...model, ...invalid }, end), RangeError);
   }
   assert.throws(() => estimatedPayoutCents(model, NaN), RangeError);

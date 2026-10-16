@@ -2,11 +2,22 @@ import { createHash, randomInt } from "node:crypto";
 import { formatUserCode, USER_CODE_ALPHABET, USER_CODE_LENGTH } from "./user-code.ts";
 
 type Environment = Record<string, string | undefined>;
-type Device = { status: "connected" | "banned" | "pending"; userId: string | null; email: string | null };
+type Device = {
+  status: "connected" | "banned" | "pending";
+  userId: string | null;
+  email: string | null;
+};
 export type DeviceStore = {
   findDevice: (keyHash: string) => Promise<Device | null>;
-  takeAdRequest: (keyHash: string) => Promise<{ status: "connected" | "banned" | "over_limit"; userId: string } | null>;
-  startDevice: (device: { keyHash: string; userCode: string; ip: string; location: string | null }) => Promise<string>;
+  takeAdRequest: (
+    keyHash: string,
+  ) => Promise<{ status: "connected" | "banned" | "over_limit"; userId: string } | null>;
+  startDevice: (device: {
+    keyHash: string;
+    userCode: string;
+    ip: string;
+    location: string | null;
+  }) => Promise<string>;
 };
 type Koah = { env: Environment; fetch: typeof fetch };
 const DEVICE_KEY = /^Bearer (sq_[A-Za-z0-9_-]{43})$/;
@@ -17,7 +28,10 @@ export function hashDeviceKey(key: string) {
 }
 
 export function generateUserCode() {
-  return Array.from({ length: USER_CODE_LENGTH }, () => USER_CODE_ALPHABET[randomInt(USER_CODE_ALPHABET.length)]).join("");
+  return Array.from(
+    { length: USER_CODE_LENGTH },
+    () => USER_CODE_ALPHABET[randomInt(USER_CODE_ALPHABET.length)],
+  ).join("");
 }
 
 // Vercel overwrites x-forwarded-for, so a client cannot supply it. Next sets it to the socket address in dev.
@@ -51,7 +65,9 @@ async function lookupDevice(request: Request, { findDevice }: Pick<DeviceStore, 
   let device: Device | null = null;
   try {
     if (keyHash) device = await findDevice(keyHash);
-  } catch { return unavailable(); }
+  } catch {
+    return unavailable();
+  }
   return device?.status === "banned" ? suspended() : device;
 }
 
@@ -64,7 +80,10 @@ async function authenticate(request: Request, store: Pick<DeviceStore, "findDevi
 function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object) {
   return fetcher(`${env.KOAH_API_URL || "https://app.koah.ai"}/api/v1/server/${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.KOAH_SERVING_TOKEN}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${env.KOAH_SERVING_TOKEN}`,
+      "Content-Type": "application/json",
+    },
     body: body && JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(10000),
@@ -75,7 +94,10 @@ function text(value: unknown, max: number) {
   return typeof value === "string" ? value.slice(0, max) : undefined;
 }
 
-export async function handleAdRequest(request: Request, deps: Koah & Pick<DeviceStore, "takeAdRequest">) {
+export async function handleAdRequest(
+  request: Request,
+  deps: Koah & Pick<DeviceStore, "takeAdRequest">,
+) {
   const keyHash = deviceKeyHash(request);
   if (!keyHash) return unauthorized();
   const body: Record<string, unknown> | null = await request.json().catch(() => null);
@@ -85,7 +107,9 @@ export async function handleAdRequest(request: Request, deps: Koah & Pick<Device
   let taken;
   try {
     taken = await deps.takeAdRequest(keyHash);
-  } catch { return unavailable(); }
+  } catch {
+    return unavailable();
+  }
   if (!taken) return unauthorized();
   if (taken.status === "banned") return suspended();
   if (taken.status === "over_limit") return reply(null, 204);
@@ -104,14 +128,19 @@ export async function handleAdRequest(request: Request, deps: Koah & Pick<Device
     });
     if (upstream.status !== 200) return fromKoah(upstream.status);
     const { impressionLink, ...ad } = await upstream.json();
-    const impressionId = typeof impressionLink === "string" ? impressionLink.split("/").pop() : undefined;
+    const impressionId =
+      typeof impressionLink === "string" ? impressionLink.split("/").pop() : undefined;
     return reply({ ...ad, impressionId });
   } catch {
     return fromKoah(0);
   }
 }
 
-export async function handleImpression(request: Request, id: string, deps: Koah & Pick<DeviceStore, "findDevice">) {
+export async function handleImpression(
+  request: Request,
+  id: string,
+  deps: Koah & Pick<DeviceStore, "findDevice">,
+) {
   if (!UUID.test(id)) return reply({ error: "Not found" }, 404);
   const auth = await authenticate(request, deps);
   if (typeof auth !== "string") return auth;
@@ -126,12 +155,23 @@ export async function handleImpression(request: Request, id: string, deps: Koah 
 
 function cityAndCountry(headers: Headers) {
   const decode = (value: string | null) => {
-    try { return value ? decodeURIComponent(value) : ""; } catch { return ""; }
+    try {
+      return value ? decodeURIComponent(value) : "";
+    } catch {
+      return "";
+    }
   };
-  return [decode(headers.get("x-vercel-ip-city")), decode(headers.get("x-vercel-ip-country"))].filter(Boolean).join(", ") || null;
+  return (
+    [decode(headers.get("x-vercel-ip-city")), decode(headers.get("x-vercel-ip-country"))]
+      .filter(Boolean)
+      .join(", ") || null
+  );
 }
 
-export async function startDeviceConnection(request: Request, { startDevice }: Pick<DeviceStore, "startDevice">) {
+export async function startDeviceConnection(
+  request: Request,
+  { startDevice }: Pick<DeviceStore, "startDevice">,
+) {
   const keyHash = deviceKeyHash(request);
   if (!keyHash) return reply({ error: "Invalid device key" }, 400);
   const ip = clientIp(request.headers);
@@ -139,7 +179,12 @@ export async function startDeviceConnection(request: Request, { startDevice }: P
   const userCode = generateUserCode();
   let expiresAt: string;
   try {
-    expiresAt = await startDevice({ keyHash, userCode, ip, location: cityAndCountry(request.headers) });
+    expiresAt = await startDevice({
+      keyHash,
+      userCode,
+      ip,
+      location: cityAndCountry(request.headers),
+    });
   } catch (error) {
     const code = (error as { code?: string } | null)?.code;
     if (code === "P0429") return reply({ error: "Too many pending connections" }, 429);
@@ -149,7 +194,10 @@ export async function startDeviceConnection(request: Request, { startDevice }: P
   return reply({ userCode: formatUserCode(userCode), expiresAt }, 201);
 }
 
-export async function deviceConnectionStatus(request: Request, store: Pick<DeviceStore, "findDevice">) {
+export async function deviceConnectionStatus(
+  request: Request,
+  store: Pick<DeviceStore, "findDevice">,
+) {
   const device = await lookupDevice(request, store);
   if (device instanceof Response) return device;
   if (device?.status === "connected") return reply({ email: device.email });

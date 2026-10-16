@@ -3,7 +3,8 @@ import { Icon } from "@/components/icon";
 import { PreviewResponse, previewTiming } from "@/components/preview-response";
 import { PreviewAdCredit, PreviewEarnings } from "@/components/preview-earnings";
 
-const RESPONSE = "Baseten helps you deploy and run AI models. It handles the infrastructure so you can focus on your app.";
+const RESPONSE =
+  "Baseten helps you deploy and run AI models. It handles the infrastructure so you can focus on your app.";
 
 export function ClaudeDesktopPreview() {
   return (
@@ -14,7 +15,11 @@ export function ClaudeDesktopPreview() {
       aria-label="Claude Desktop task view with a sample Baseten sponsored ad under the answer, model controls, and a demo earnings balance that increases from $12.40 to $12.41 after the ad appears. The amounts are illustrative."
     >
       <div className="desktop-titlebar">
-        <div className="desktop-window-controls" aria-hidden="true"><i /><i /><i /></div>
+        <div className="desktop-window-controls" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
         <div className="desktop-task-title">
           <span>Baseten summary</span>
         </div>
@@ -23,7 +28,9 @@ export function ClaudeDesktopPreview() {
 
       <div className="desktop-conversation">
         <p className="desktop-user-prompt preview-prompt">What does Baseten do?</p>
-        <p className="desktop-answer preview-answer"><PreviewResponse text={RESPONSE} /></p>
+        <p className="desktop-answer preview-answer">
+          <PreviewResponse text={RESPONSE} />
+        </p>
         {/* The mod draws the ad under the last message of the answer, after a divider. */}
         <div className="desktop-sponsored-strip preview-ad">
           <hr className="sponsor-divider" />
@@ -43,7 +50,9 @@ export function ClaudeDesktopPreview() {
       <div className="desktop-composer">
         <div className="desktop-command-input">
           <span>Type / for commands</span>
-          <span className="desktop-send" aria-hidden="true"><Icon name="arrow-up" size={13} /></span>
+          <span className="desktop-send" aria-hidden="true">
+            <Icon name="arrow-up" size={13} />
+          </span>
         </div>
         <div className="desktop-composer-controls">
           <div className="desktop-input-tools">

@@ -17,7 +17,11 @@ export function previewTiming(text: string): CSSProperties {
 export function PreviewResponse({ text }: { text: string }) {
   return (
     <>
-      <span className="preview-thinking" aria-hidden="true"><i /><i /><i /></span>
+      <span className="preview-thinking" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
       <span className="preview-response">
         {text.split(" ").map((word, index) => (
           <span

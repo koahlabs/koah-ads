@@ -18,10 +18,13 @@ export function ProductPreview() {
 
     let inView = false;
     const updatePlayback = () => setIsPlaying(inView && !document.hidden);
-    const observer = new IntersectionObserver(([entry]) => {
-      inView = entry.intersectionRatio >= 0.2;
-      updatePlayback();
-    }, { threshold: 0.2 });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        inView = entry.intersectionRatio >= 0.2;
+        updatePlayback();
+      },
+      { threshold: 0.2 },
+    );
 
     observer.observe(preview);
     document.addEventListener("visibilitychange", updatePlayback);

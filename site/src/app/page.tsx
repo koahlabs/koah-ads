@@ -12,7 +12,9 @@ export default function Home() {
       <main id="main-content" className="site-shell home-page">
         <header className="intro">
           <div className="intro-heading">
-            <h1 className="wordmark"><BrandLink /></h1>
+            <h1 className="wordmark">
+              <BrandLink />
+            </h1>
             <AuthNav />
           </div>
           <p className="tagline">Earn while you use Claude.</p>
@@ -24,7 +26,9 @@ export default function Home() {
         <WaitlistForm />
         <ProductPreview />
 
-        <p className="text-divider" aria-hidden="true">{"/////////"}</p>
+        <p className="text-divider" aria-hidden="true">
+          {"/////////"}
+        </p>
 
         <section className="details" aria-labelledby="how-it-works-heading">
           <h2 id="how-it-works-heading">How it works.</h2>

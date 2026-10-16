@@ -10,7 +10,7 @@ See [Local development](../README.md#local-development) in the root README. Keep
 
 1. Add `LOOPS_API_KEY` to `.env.local`.
 2. Set `LOOPS_FROM_EMAIL` to a sender local part on your verified Loops domain. The setup script defaults to `noreply`, the existing sender in the connected Koah account.
-3. Run `npm run loops:setup`. It creates the three waitlist contact properties (`muxWaitlistJoinedAt`, `muxWaitlistWelcomeSent`, `muxWaitlistSlackNotified`; the keys keep their original names), creates or reuses the dedicated Sidequest welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
+3. Run `bun run loops:setup`. It creates the three waitlist contact properties (`muxWaitlistJoinedAt`, `muxWaitlistWelcomeSent`, `muxWaitlistSlackNotified`; the keys keep their original names), creates or reuses the dedicated Sidequest welcome template, uploads `emails/waitlist-welcome.lmx`, publishes the template, and saves `LOOPS_WAITLIST_TRANSACTIONAL_ID` to `.env.local`. The script does not send email or alter unrelated templates.
 4. Optionally set `LOOPS_WAITLIST_MAILING_LIST_ID` to an existing list ID. Otherwise, select waitlist contacts in Loops with the filter **muxWaitlistJoinedAt is not empty**.
 5. Submit your own email through the site to test the complete flow.
 
@@ -45,7 +45,7 @@ This is the count of newly stored signups after this code is deployed, not the h
 New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 📧 for the normalized email and 🗓️ for the first join date. Account sign-ins do not send messages.
 
 1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
-2. Run `npm run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
+2. Run `bun run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
 3. Deploy the updated site. The webhook's Slack configuration determines the destination channel; the app cannot override it. See [Slack's incoming-webhook guide](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
 
 After Loops saves the signup, Next.js `after` sends the notification in the background. Welcome-email failures do not stop the Slack notification, and Slack failures do not change the signup response. Successful delivery saves the marker in Loops, so later submissions do not send another message. Pending notifications retry if the address submits the form again. Contacts enrolled before this integration, with no notification marker, do not send old signup messages.
@@ -55,9 +55,8 @@ Incoming webhooks do not provide an idempotency key. Same-instance concurrent se
 ## Checks
 
 ```bash
-npm test
-npm run lint
-npm run build
+bun run test
+bun run build
 ```
 
 The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, Slack delivery, and custom-event eligibility. They mock Loops, Slack, and analytics and send no email, Slack messages, or analytics events.
@@ -89,7 +88,7 @@ The default Supabase email template returns to `/auth/callback` using PKCE. Open
 
 Before enabling email delivery for public users, configure custom SMTP in Supabase. Its default SMTP service only sends to project team members and limits email volume. For Loops, use `smtp.loops.so`, port `587`, username `loops`, and a Loops API key as the SMTP password. Configure both the **Confirm signup** and **Magic Link** email templates. Keep email confirmation enabled. See [Supabase email links](https://supabase.com/docs/guides/auth/auth-email-passwordless), [Supabase SMTP limits](https://supabase.com/docs/guides/auth/auth-smtp), and [Loops SMTP setup](https://loops.so/docs/smtp/supabase).
 
-Run `npm run loops:auth-setup` to publish the dedicated white-background, black-text sign-in email from `emails/sign-in-link.lmx`. The script does not send email or change the waitlist email. It saves a Loops template ID locally and generates `emails/supabase-sign-in.json`. Paste that JSON into both Supabase's **Confirm signup** and **Magic Link** message bodies after configuring Loops SMTP. The payload uses a token hash and the app's allowed callback URL. Auth links disable Loops click tracking. It does not add recipients to the Loops marketing audience. SMTP credentials stay in Supabase; the Next.js app needs no additional private keys for email sign-in.
+Run `bun run loops:auth-setup` to publish the dedicated white-background, black-text sign-in email from `emails/sign-in-link.lmx`. The script does not send email or change the waitlist email. It saves a Loops template ID locally and generates `emails/supabase-sign-in.json`. Paste that JSON into both Supabase's **Confirm signup** and **Magic Link** message bodies after configuring Loops SMTP. The payload uses a token hash and the app's allowed callback URL. Auth links disable Loops click tracking. It does not add recipients to the Loops marketing audience. SMTP credentials stay in Supabase; the Next.js app needs no additional private keys for email sign-in.
 
 The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`. Public Supabase settings are configured locally and in Vercel's Production, Preview, and Development environments. Store the Google client secret only in Supabase's Google provider settings.
 

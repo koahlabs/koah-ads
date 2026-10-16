@@ -10,10 +10,14 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
     <main id="main-content" className="site-shell legal-page">
       <header>
         <div className="intro-heading">
-          <div className="wordmark"><BrandLink /></div>
+          <div className="wordmark">
+            <BrandLink />
+          </div>
           <AuthNav />
         </div>
-        <Link className="legal-back" href="/"><Icon name="arrow-left" /> Back to Sidequest</Link>
+        <Link className="legal-back" href="/">
+          <Icon name="arrow-left" /> Back to Sidequest
+        </Link>
         <h1 className="legal-title">{title}</h1>
         <p className="legal-date">Last updated October 11, 2026</p>
       </header>

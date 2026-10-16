@@ -9,9 +9,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthErrorMessage } from "@/lib/auth-policy";
 import { isGoogleSignInAvailable } from "@/lib/supabase/config";
 
-export const metadata: Metadata = { title: "Sign in | Sidequest", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Sign in | Sidequest",
+  robots: { index: false, follow: false },
+};
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
   const { error } = await searchParams;
   const supabase = await createClient({ readOnly: true });
   let signedIn = false;
@@ -19,21 +26,34 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     try {
       const { data } = await supabase.auth.getUser();
       signedIn = !!data.user;
-    } catch { /* Provider failures leave sign-in available. */ }
+    } catch {
+      /* Provider failures leave sign-in available. */
+    }
   }
   if (signedIn) redirect("/account");
-  const available = !!supabase && await isGoogleSignInAvailable();
+  const available = !!supabase && (await isGoogleSignInAvailable());
   return (
     <>
       <DitherBackground />
       <main id="main-content" className="site-shell auth-page sign-in-page">
         <section className="auth-content sign-in-content" aria-labelledby="sign-in-heading">
-          <div className="wordmark sign-in-brand"><BrandLink /></div>
+          <div className="wordmark sign-in-brand">
+            <BrandLink />
+          </div>
           <div className="sign-in-card">
             <h1 id="sign-in-heading">Sign in</h1>
-            <AuthForm mode="sign-in" available={available} initialError={error === "link" ? "" : getAuthErrorMessage(error)} />
-            <div className="auth-divider"><span>or</span></div>
-            <EmailSignInForm available={!!supabase} initialError={error === "link" ? getAuthErrorMessage(error) : ""} />
+            <AuthForm
+              mode="sign-in"
+              available={available}
+              initialError={error === "link" ? "" : getAuthErrorMessage(error)}
+            />
+            <div className="auth-divider">
+              <span>or</span>
+            </div>
+            <EmailSignInForm
+              available={!!supabase}
+              initialError={error === "link" ? getAuthErrorMessage(error) : ""}
+            />
           </div>
         </section>
         <SiteFooter />

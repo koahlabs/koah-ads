@@ -11,7 +11,10 @@ export function DitherBackground() {
 
     let inView = true;
     const syncPlayback = () => {
-      background.style.setProperty("--dither-play-state", inView && !document.hidden ? "running" : "paused");
+      background.style.setProperty(
+        "--dither-play-state",
+        inView && !document.hidden ? "running" : "paused",
+      );
     };
     const observer = new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting;

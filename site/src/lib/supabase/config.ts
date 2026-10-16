@@ -2,7 +2,8 @@ import { isLocalHttp } from "../auth-policy.ts";
 
 export function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   // These are public project keys. Service-role and secret keys must never be used here.
   if (key.startsWith("sb_secret_")) throw new Error("Use a Supabase publishable key for sign-in.");
@@ -16,7 +17,8 @@ export function getSupabaseConfig() {
   }
   const parsed = new URL(url);
   const local = process.env.NODE_ENV !== "production" && isLocalHttp(parsed);
-  if (parsed.protocol !== "https:" && !local) throw new Error("The Supabase project URL must use HTTPS.");
+  if (parsed.protocol !== "https:" && !local)
+    throw new Error("The Supabase project URL must use HTTPS.");
   return { url, key };
 }
 
