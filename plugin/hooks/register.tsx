@@ -50,6 +50,20 @@ async function resolveSite($: EngineInterface): Promise<string> {
   return SITE;
 }
 
+// Tries the opener for each OS in turn. The reply always shows the URL, so every failure is ignored.
+async function openBrowser($: EngineInterface, url: string) {
+  const openers = [
+    ["open", url],
+    ["xdg-open", url],
+    ["rundll32", "url.dll,FileProtocolHandler", url],
+  ];
+  for (const argv of openers) {
+    try {
+      if ((await $.process.run(argv)).exitCode === 0) return;
+    } catch {}
+  }
+}
+
 function newDeviceKey(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const b64 = btoa(String.fromCharCode(...bytes));
@@ -193,10 +207,10 @@ export const register: Register = (on, options) => {
     const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string };
     const pending = { key, expiresAt: Date.parse(expiresAt) };
     await $.store.set("pending", pending);
-    await $.process.run(["open", `${base}/connect`]).catch(() => {});
+    await openBrowser($, `${base}/connect`);
     void pollConnection($, pending).catch(() => {});
     return {
-      text: `Open ${base.replace("https://", "")}/connect and enter code **${userCode}**. Never enter a code you didn't get from this terminal.`,
+      text: `Open ${base}/connect and enter code **${userCode}**. Never enter a code you didn't get from this terminal.`,
     };
   });
 

@@ -55,7 +55,15 @@ Built to last, repaired for free. Patagonia's Ironclad Guarantee means...
 
 For the Claude Desktop app, follow [the desktop installation guide](docs/claude-desktop.md). Use the **Code** tab and a local session.
 
-Run this at the prompt of a Claude Code session:
+Run this in a normal terminal shell, not inside Claude:
+
+```
+claude plugin marketplace add koahlabs/sidequest && claude plugin install sidequest@koah --scope user
+```
+
+Then start a new Claude Code session, or run `/reload-plugins` in one that is already open.
+
+Or run this at the prompt of a Claude Code session:
 
 ```
 /plugin install sidequest --marketplace koahlabs/sidequest

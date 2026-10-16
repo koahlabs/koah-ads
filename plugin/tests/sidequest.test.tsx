@@ -31,6 +31,7 @@ type WorldOptions = {
   polls?: number[];
   adStatus?: number;
   ad?: typeof AD;
+  failingCommands?: string[];
 };
 
 // The world beneath the mod: the site proxy, the icon fetch, and an engine
@@ -46,6 +47,7 @@ function world(
     polls = [],
     adStatus = 200,
     ad = AD,
+    failingCommands = [],
   }: WorldOptions = {},
 ) {
   const calls: Call[] = [];
@@ -82,7 +84,7 @@ function world(
     opened.push(e.argv);
     return {
       value: {
-        exitCode: 0,
+        exitCode: failingCommands.includes(e.argv[0] ?? "") ? 1 : 0,
         stdout: `${PNG}\n`,
         stderr: "",
         isStdoutTruncated: false,
@@ -169,8 +171,15 @@ test("/sidequest-connect shows the code and opens a link that carries none", asy
   const text = await connect($);
 
   expect(text).toContain("**BCDF-GHJK**");
-  expect(text).toContain("getsidequest.dev/connect ");
+  expect(text).toContain(`${SITE}/connect `);
   expect(opened).toContainEqual(["open", `${SITE}/connect`]);
+});
+
+test("/sidequest-connect tries the next opener when open fails", async ($, on) => {
+  const { opened } = world(on, { failingCommands: ["open"] });
+  await connect($);
+
+  expect(opened).toContainEqual(["xdg-open", `${SITE}/connect`]);
 });
 
 test("once the site confirms the code, the mod names the account and requests ads with that key", async ($, on) => {

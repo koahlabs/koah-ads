@@ -45,8 +45,7 @@ the options screen. The plugin runs at once.
 **Anywhere else (desktop Code tab, IDE, or the user prefers you do it).** Run:
 
 ```bash
-claude plugin marketplace add koahlabs/sidequest
-claude plugin install sidequest@koah --scope user
+claude plugin marketplace add koahlabs/sidequest && claude plugin install sidequest@koah --scope user
 ```
 
 ## 3. Connect
