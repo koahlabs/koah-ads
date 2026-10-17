@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Starts the first-run flow from scratch in seconds: deletes every local Supabase account (their
+# devices, usage and payouts go with them), pending connect codes, and the plugin's saved device
+# key and code. Local only. Quit Claude Code first.
+set -euo pipefail
+
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -q -c \
+  "delete from public.sidequest_devices where user_id is null; delete from auth.users;"
+echo "Deleted local accounts and pending codes."
+
+store="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/store"
+shopt -s nullglob
+files=("$store"/sidequest_*.json)
+if [ ${#files[@]} -gt 0 ]; then
+  rm -- "${files[@]}"
+  printf 'Removed %s\n' "${files[@]}"
+fi

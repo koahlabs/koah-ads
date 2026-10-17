@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "script/dev",
+    "reset": "script/reset",
+    "uninstall-plugin": "script/uninstall-plugin",
     "lint": "oxlint",
     "format": "oxfmt",
     "prepare": "lefthook install"

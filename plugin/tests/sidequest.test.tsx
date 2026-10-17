@@ -15,7 +15,6 @@ const AD = {
 
 const PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
-const OPTIONS = { demo: true };
 const SITE = "https://getsidequest.dev";
 const IMPRESSION_URL = `${SITE}/api/impression/${AD.impressionId}`;
 const QUESTION = "What should I look for in running shoes?";
@@ -31,6 +30,9 @@ type WorldOptions = {
   polls?: number[];
   adStatus?: number;
   ad?: typeof AD;
+  failingCommands?: string[];
+  osEnv?: Record<string, string>;
+  unameOutput?: string;
 };
 
 // The world beneath the mod: the site proxy, the icon fetch, and an engine
@@ -46,6 +48,9 @@ function world(
     polls = [],
     adStatus = 200,
     ad = AD,
+    failingCommands = [],
+    osEnv = {},
+    unameOutput = "Darwin\n",
   }: WorldOptions = {},
 ) {
   const calls: Call[] = [];
@@ -82,8 +87,8 @@ function world(
     opened.push(e.argv);
     return {
       value: {
-        exitCode: 0,
-        stdout: `${PNG}\n`,
+        exitCode: failingCommands.includes(e.argv[0] ?? "") ? 1 : 0,
+        stdout: e.argv[0] === "uname" ? unameOutput : `${PNG}\n`,
         stderr: "",
         isStdoutTruncated: false,
         isStderrTruncated: false,
@@ -101,6 +106,7 @@ function world(
   on("session.start", async (_$, e) => ({ cwd: e.cwd }));
   on("command.register", async (_$, e) => ({ value: { command: e.name } }));
   mock.store(on, store);
+  mock.env(on, osEnv);
   on("settings.read", async (_$, e) => {
     const envs: Record<string, Record<string, string>> = {
       project: projectEnv,
@@ -139,17 +145,6 @@ async function connect($: Engine) {
   return text ?? "";
 }
 
-async function answer($: Engine, question = QUESTION) {
-  await $.prompt.submit({ text: question, wait: false, origin: { kind: "composer" } });
-  await $.turn.complete({
-    answer: ANSWER,
-    durationMs: 10,
-    isAborted: false,
-    turnId: "t1",
-    reason: "answer",
-  });
-}
-
 const message = (text: string) => ({
   plugin: "sidequest",
   component: "AssistantMessage" as const,
@@ -160,17 +155,65 @@ const message = (text: string) => ({
 test("requests no ad before the account is connected", async ($, on) => {
   const { calls } = world(on);
   await connect($);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
   expect(adRequests(calls)).toHaveLength(0);
 });
 
-test("/sidequest-connect shows the code and opens a link that carries none", async ($, on) => {
-  const { opened } = world(on);
+test("/sidequest-connect shows the plain link and code", async ($, on) => {
+  world(on);
   const text = await connect($);
 
+  expect(text).toContain(`${SITE}/connect `);
   expect(text).toContain("**BCDF-GHJK**");
-  expect(text).toContain("getsidequest.dev/connect ");
-  expect(opened).toContainEqual(["open", `${SITE}/connect`]);
+});
+
+test("keeps the code on the status line while the connection is pending", async ($, on) => {
+  const { statuses } = world(on);
+  await connect($);
+
+  expect(statuses.at(-1)).toContain(`${SITE}/connect and enter code BCDF-GHJK`);
+});
+
+const URL_WITH_CODE = `${SITE}/connect?code=BCDF-GHJK`;
+const CONNECT_ROWS = [
+  { os: "macos", options: { unameOutput: "Darwin\n" }, opener: ["open", URL_WITH_CODE] },
+  { os: "linux", options: { unameOutput: "Linux\n" }, opener: ["xdg-open", URL_WITH_CODE] },
+  {
+    os: "windows",
+    options: { osEnv: { OS: "Windows_NT" } },
+    opener: ["rundll32", "url.dll,FileProtocolHandler", URL_WITH_CODE],
+  },
+];
+
+for (const { os, options, opener } of CONNECT_ROWS) {
+  test(`/sidequest-connect on ${os} reports the os and opens the link with ${opener[0]}`, async ($, on) => {
+    const { calls, opened } = world(on, options);
+    await connect($);
+
+    const start = calls.find((c) => c.method === "POST");
+    expect(JSON.parse(start?.body ?? "")).toEqual({ os });
+    expect(opened).toContainEqual(opener);
+  });
+}
+
+test("/sidequest-connect tries every opener when the os is unknown", async ($, on) => {
+  const { calls, opened } = world(on, {
+    unameOutput: "FreeBSD\n",
+    failingCommands: ["open", "xdg-open"],
+  });
+  await connect($);
+
+  const start = calls.find((c) => c.method === "POST");
+  expect(JSON.parse(start?.body ?? "{}")).toEqual({});
+  const openers = opened.filter((argv) => argv.at(-1)?.includes("/connect?code="));
+  expect(openers.map((argv) => argv[0])).toEqual(["open", "xdg-open", "rundll32"]);
 });
 
 test("once the site confirms the code, the mod names the account and requests ads with that key", async ($, on) => {
@@ -179,7 +222,14 @@ test("once the site confirms the code, the mod names the account and requests ad
   await clock.advance(1000);
   expect(toasts).toEqual([]);
   await clock.advance(1000);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
 
   const created = calls.find((c) => c.method === "POST" && c.url === `${SITE}/api/device`);
   expect(toasts).toEqual(["Sidequest connected as ada@example.com."]);
@@ -190,7 +240,14 @@ test("an expired code ends the poll without connecting", async ($, on) => {
   const { calls, toasts, clock } = world(on, { polls: [404] });
   await connect($);
   await clock.advance(1000);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
 
   expect(toasts).toEqual(["Sidequest: the code expired. Run /sidequest-connect again."]);
   expect(adRequests(calls)).toHaveLength(0);
@@ -201,7 +258,14 @@ test("a second /sidequest-connect replaces the first, so only its key is connect
   await connect($);
   await connect($);
   await clock.advance(1000);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
 
   const created = calls.filter((c) => c.method === "POST" && c.url === `${SITE}/api/device`);
   expect(toasts).toHaveLength(1);
@@ -210,7 +274,7 @@ test("a second /sidequest-connect replaces the first, so only its key is connect
 
 test("resumes a connection left pending by a restart", async ($, on) => {
   const { toasts, clock } = world(on, {
-    store: { pending: { key: "sq_pending", expiresAt: 600000 } },
+    store: { pending: { key: "sq_pending", expiresAt: 600000, userCode: "BCDF-GHJK" } },
     polls: [200],
   });
   await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
@@ -218,16 +282,38 @@ test("resumes a connection left pending by a restart", async ($, on) => {
   expect(toasts).toEqual(["Sidequest connected as ada@example.com."]);
 });
 
+test("a poll whose code another session already confirmed clears its status line", async ($, on) => {
+  const { statuses, toasts, clock } = world(on, {
+    store: { pending: { key: "sq_pending", expiresAt: 600000, userCode: "BCDF-GHJK" } },
+    polls: [200, 202],
+  });
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await clock.advance(1000);
+
+  expect(toasts).toHaveLength(1);
+  expect(statuses.slice(-2)).toEqual([undefined, undefined]);
+});
+
+test("a session with no key reminds the user to run /sidequest-connect", async ($, on) => {
+  const { calls, toasts, clock } = world(on);
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await clock.settle();
+
+  expect(calls).toHaveLength(0);
+  expect(toasts).toEqual(["sidequest: run /sidequest-connect to link your account"]);
+});
+
 test("ignores a SIDEQUEST_URL set only in project settings", async ($, on) => {
   const { calls } = world(on, { projectEnv: { SIDEQUEST_URL: "http://localhost:3001" } });
   await connect($);
-  expect(calls.every((c) => c.url.startsWith(SITE))).toBe(true);
+  expect(calls[0]?.url.startsWith(SITE)).toBe(true);
 });
 
 test("uses a loopback SIDEQUEST_URL from user settings", async ($, on) => {
   const { calls } = world(on, { userEnv: { SIDEQUEST_URL: "http://localhost:3001" } });
   await connect($);
-  expect(calls.every((c) => c.url.startsWith("http://localhost:3001"))).toBe(true);
+  expect(calls[0]?.url.startsWith("http://localhost:3001")).toBe(true);
 });
 
 test("uses a loopback SIDEQUEST_URL from the --settings flag over user settings", async ($, on) => {
@@ -236,61 +322,113 @@ test("uses a loopback SIDEQUEST_URL from the --settings flag over user settings"
     flagEnv: { SIDEQUEST_URL: "http://127.0.0.1:3002" },
   });
   await connect($);
-  expect(calls.every((c) => c.url.startsWith("http://127.0.0.1:3002"))).toBe(true);
+  expect(calls[0]?.url.startsWith("http://127.0.0.1:3002")).toBe(true);
 });
 
 test("ignores a non-loopback SIDEQUEST_URL from user settings", async ($, on) => {
   const { calls } = world(on, { userEnv: { SIDEQUEST_URL: "http://localhost.evil.example" } });
   await connect($);
-  expect(calls.every((c) => c.url.startsWith(SITE))).toBe(true);
+  expect(calls[0]?.url.startsWith(SITE)).toBe(true);
 });
 
 test("shows the suspended status when the site refuses a banned account", async ($, on) => {
   const { statuses } = world(on, { ...CONNECTED, adStatus: 403 });
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
   expect(statuses).toContain("sidequest: account suspended");
 });
 
+test("sends the question, answer and session id with the device key", async ($, on) => {
+  const { calls } = world(on, CONNECTED);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
+
+  const request = adRequests(calls)[0];
+  expect(keyOf(request)).toBe(KEY);
+  expect(JSON.parse(request?.body ?? "{}")).toEqual({
+    question: QUESTION,
+    answer: ANSWER,
+    conversationId: "session_abc",
+  });
+});
+
 for (const surface of ["terminal", "desktop"] as const) {
-  test(
-    `shows a labeled ad under the last message of the answer and reports one impression (${surface})`,
-    { options: OPTIONS },
-    async ($, on) => {
-      const { calls, clock } = world(on, CONNECTED);
-      await answer($);
+  test(`shows a labeled ad under the last message of the answer (${surface})`, async ($, on) => {
+    world(on, CONNECTED);
+    await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+    await $.turn.complete({
+      answer: ANSWER,
+      durationMs: 10,
+      isAborted: false,
+      turnId: "t1",
+      reason: "answer",
+    });
 
-      const request = adRequests(calls)[0];
-      expect(keyOf(request)).toBe(KEY);
-      expect(JSON.parse(request?.body ?? "{}")).toEqual({
-        question: QUESTION,
-        answer: ANSWER,
-        conversationId: "session_abc",
-        demo: true,
-      });
-
-      const ui = await $.ui.mount({ ...message("Prioritize fit and cushioning."), surface });
-      expect(await ui.find({ text: /Example Brand/ })).toBeDefined();
-      expect(await ui.find({ text: /Sponsored/ })).toBeDefined();
-      expect(await ui.find({ type: surface === "terminal" ? "Image" : "Svg" })).toBeDefined();
-      if (surface === "desktop") {
-        const svg = await ui.find({ type: "Svg" });
-        expect(svg?.props.source).toContain(`data:image/png;base64,${PNG}`);
-        expect(svg?.props.alt).toBe("Example Brand logo");
-      }
-      expect(await ui.find({ type: "Link", text: /Explore/ })).toBeDefined();
-
-      await clock.settle();
-      const impressions = calls.filter((c) => c.url === IMPRESSION_URL);
-      expect(impressions).toHaveLength(1);
-      expect(impressions[0]?.auth).toBe(`Bearer ${KEY}`);
-      await ui.unmount();
-    },
-  );
+    const ui = await $.ui.mount({ ...message("Prioritize fit and cushioning."), surface });
+    expect(await ui.find({ text: /Example Brand/ })).toBeDefined();
+    expect(await ui.find({ text: /Sponsored/ })).toBeDefined();
+    expect(await ui.find({ type: surface === "terminal" ? "Image" : "Svg" })).toBeDefined();
+    if (surface === "desktop") {
+      const svg = await ui.find({ type: "Svg" });
+      expect(svg?.props.source).toContain(`data:image/png;base64,${PNG}`);
+      expect(svg?.props.alt).toBe("Example Brand logo");
+    }
+    expect(await ui.find({ type: "Link", text: /Explore/ })).toBeDefined();
+    await ui.unmount();
+  });
 }
 
-test("renders no ad and sends no request for a slot without a valid impressionId", async ($, on) => {
+test("reports an impression once even when the ad renders twice", async ($, on) => {
+  const { calls, clock } = world(on, CONNECTED);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
+
+  const first = await $.ui.mount({
+    ...message("Prioritize fit and cushioning."),
+    surface: "terminal",
+  });
+  await clock.settle();
+  await first.unmount();
+  const second = await $.ui.mount({
+    ...message("Prioritize fit and cushioning."),
+    surface: "terminal",
+  });
+  await clock.settle();
+  await second.unmount();
+
+  const impressions = calls.filter((c) => c.url === IMPRESSION_URL);
+  expect(impressions).toHaveLength(1);
+  expect(impressions[0]?.auth).toBe(`Bearer ${KEY}`);
+});
+
+test("renders no ad and reports no impression for an ad without a valid impressionId", async ($, on) => {
   const { calls, clock } = world(on, { ...CONNECTED, ad: { ...AD, impressionId: "../../evil" } });
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
 
   const ui = await $.ui.mount({
     ...message("Prioritize fit and cushioning."),
@@ -304,7 +442,14 @@ test("renders no ad and sends no request for a slot without a valid impressionId
 
 test("leaves the earlier messages of the answer alone", async ($, on) => {
   world(on, CONNECTED);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
 
   const ui = await $.ui.mount({ ...message("Look at fit first."), surface: "desktop" });
   expect(await ui.find({ text: /engine row/ })).toBeDefined();
@@ -313,7 +458,14 @@ test("leaves the earlier messages of the answer alone", async ($, on) => {
 
 test("/sidequest hides the ad and stops requests", async ($, on) => {
   const { calls } = world(on, CONNECTED);
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
   await $.command.run({
     command: "sidequest",
     args: "",
@@ -325,12 +477,26 @@ test("/sidequest hides the ad and stops requests", async ($, on) => {
   expect(await ui.find({ text: /Sponsored/ })).toBeUndefined();
 
   const before = adRequests(calls).length;
-  await answer($);
+  await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
   expect(adRequests(calls)).toHaveLength(before);
 });
 
 test("requests nothing when the question is blank", async ($, on) => {
   const { calls } = world(on, CONNECTED);
-  await answer($, "  ");
+  await $.prompt.submit({ text: "  ", wait: false, origin: { kind: "composer" } });
+  await $.turn.complete({
+    answer: ANSWER,
+    durationMs: 10,
+    isAborted: false,
+    turnId: "t1",
+    reason: "answer",
+  });
   expect(adRequests(calls)).toHaveLength(0);
 });

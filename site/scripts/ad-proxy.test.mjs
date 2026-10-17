@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   deviceConnectionStatus,
-  generateUserCode,
+  fetchUserEarnings,
   handleAdRequest,
   handleImpression,
   hashDeviceKey,
@@ -84,8 +84,22 @@ test("forwards the question to Koah for the signed-in user and returns the impre
     platform: "cli",
     user: { id: "user-1", ip: "203.0.113.9" },
     context: { type: "conversation", question: "How do I rebase?" },
-    demo: false,
   });
+});
+test("fetches a user's daily earnings from Koah with the serving token", async () => {
+  const earnings = [{ date: "2026-10-16", impressions: 1, revenueCents: 2 }];
+  const mock = deps([{ body: { earnings } }]);
+  assert.deepEqual(await fetchUserEarnings(mock, "user-1", "2026-10-01", "2026-10-16"), earnings);
+  assert.equal(
+    mock.calls[0].url,
+    "https://koah.example/api/v1/server/users/user-1/earnings?starts_at=2026-10-01&ends_at=2026-10-16",
+  );
+  assert.equal(mock.calls[0].method, "GET");
+  assert.equal(mock.calls[0].headers.Authorization, "Bearer serving-token");
+});
+test("fails when Koah rejects the earnings request", async () => {
+  const mock = deps([{ status: 422 }]);
+  await assert.rejects(fetchUserEarnings(mock, "user-1", "2026-10-16", "2026-10-01"));
 });
 test("returns no fill without calling Koah once the daily limit is used", async () => {
   const mock = {
@@ -200,9 +214,6 @@ const getDeviceRequest = (key = deviceKey) =>
     headers: { authorization: `Bearer ${key}` },
   });
 
-test("generates user codes from the 20-letter alphabet only", () => {
-  assert.match(generateUserCode(), /^[BCDFGHJKLMNPQRSTVWXZ]{8}$/);
-});
 test("normalizes typed user codes", () => {
   assert.equal(normalizeUserCode("bcdf-ghjk"), "BCDFGHJK");
   for (const input of ["BCDFGHJ", "BCDFGHJKL", "AEIOUBCD", "1234-5678", null])
@@ -234,8 +245,29 @@ test("starts a device connection with the caller's ip and location", async () =>
       userCode: normalizeUserCode(body.userCode),
       ip: "203.0.113.9",
       location: "São Paulo, BR",
+      os: null,
     },
   ]);
+});
+test("stores the os a plugin reports and drops values outside the allowlist", async () => {
+  const started = [];
+  const startDevice = async (device) => {
+    started.push(device);
+    return "2026-10-15T12:10:00.000+00:00";
+  };
+  const withBody = (body) =>
+    new Request("https://sidequest.example/api/device", {
+      method: "POST",
+      headers: { authorization: `Bearer ${deviceKey}`, "x-forwarded-for": "203.0.113.9" },
+      body,
+    });
+  await startDeviceConnection(withBody(JSON.stringify({ os: "macos" })), { startDevice });
+  await startDeviceConnection(withBody(JSON.stringify({ os: "toString" })), { startDevice });
+  await startDeviceConnection(withBody("not json"), { startDevice });
+  assert.deepEqual(
+    started.map(({ os }) => os),
+    ["macos", null, null],
+  );
 });
 test("maps start errors to 429, 409 and 502", async () => {
   const statusFor = async (code) =>

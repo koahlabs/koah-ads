@@ -1,4 +1,5 @@
 import { createHash, randomInt } from "node:crypto";
+import { isDeviceOs, type DeviceOs, type KoahEarning } from "./dashboard.ts";
 import { formatUserCode, USER_CODE_ALPHABET, USER_CODE_LENGTH } from "./user-code.ts";
 
 type Environment = Record<string, string | undefined>;
@@ -17,6 +18,7 @@ export type DeviceStore = {
     userCode: string;
     ip: string;
     location: string | null;
+    os: DeviceOs | null;
   }) => Promise<string>;
 };
 type Koah = { env: Environment; fetch: typeof fetch };
@@ -27,7 +29,7 @@ export function hashDeviceKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export function generateUserCode() {
+function generateUserCode() {
   return Array.from(
     { length: USER_CODE_LENGTH },
     () => USER_CODE_ALPHABET[randomInt(USER_CODE_ALPHABET.length)],
@@ -77,9 +79,9 @@ async function authenticate(request: Request, store: Pick<DeviceStore, "findDevi
   return device?.status === "connected" && device.userId ? device.userId : unauthorized();
 }
 
-function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object) {
+function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object, method = "POST") {
   return fetcher(`${env.KOAH_API_URL || "https://app.koah.ai"}/api/v1/server/${path}`, {
-    method: "POST",
+    method,
     headers: {
       Authorization: `Bearer ${env.KOAH_SERVING_TOKEN}`,
       "Content-Type": "application/json",
@@ -88,6 +90,23 @@ function koahRequest({ env, fetch: fetcher }: Koah, path: string, body?: object)
     cache: "no-store",
     signal: AbortSignal.timeout(10000),
   });
+}
+
+export async function fetchUserEarnings(
+  koah: Koah,
+  userId: string,
+  startsAt: string,
+  endsAt: string,
+) {
+  const response = await koahRequest(
+    koah,
+    `users/${userId}/earnings?starts_at=${startsAt}&ends_at=${endsAt}`,
+    undefined,
+    "GET",
+  );
+  if (response.status !== 200) throw new Error(`Koah earnings responded ${response.status}`);
+  const { earnings } = (await response.json()) as { earnings: KoahEarning[] };
+  return earnings;
 }
 
 function text(value: unknown, max: number) {
@@ -124,7 +143,6 @@ export async function handleAdRequest(
         answer: text(body.answer, 4000),
         externalConversationId: text(body.conversationId, 64),
       },
-      demo: body.demo === true,
     });
     if (upstream.status !== 200) return fromKoah(upstream.status);
     const { impressionLink, ...ad } = await upstream.json();
@@ -176,6 +194,9 @@ export async function startDeviceConnection(
   if (!keyHash) return reply({ error: "Invalid device key" }, 400);
   const ip = clientIp(request.headers);
   if (!ip) return reply({ error: "Client IP unavailable" }, 503);
+  // Plugins from before the device details send no body.
+  const details: Record<string, unknown> | null = await request.json().catch(() => null);
+  const os = isDeviceOs(details?.os) ? details.os : null;
   const userCode = generateUserCode();
   let expiresAt: string;
   try {
@@ -184,6 +205,7 @@ export async function startDeviceConnection(
       userCode,
       ip,
       location: cityAndCountry(request.headers),
+      os,
     });
   } catch (error) {
     const code = (error as { code?: string } | null)?.code;

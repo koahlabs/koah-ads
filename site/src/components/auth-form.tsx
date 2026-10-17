@@ -37,9 +37,7 @@ export function AuthForm({
       </button>
       <div className="auth-feedback" aria-live="polite">
         {(state.error || !available) && (
-          <p role="alert">
-            {state.error || "Sign-in is not available yet. Please try again later."}
-          </p>
+          <p role="alert">{state.error || "Google sign-in is off. Use your email."}</p>
         )}
       </div>
     </form>

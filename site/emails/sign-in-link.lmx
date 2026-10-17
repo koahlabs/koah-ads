@@ -1,5 +1,7 @@
-<Style backgroundColor="#ffffff" backgroundXPadding="16" backgroundYPadding="32" bodyColor="#ffffff" bodyXPadding="24" bodyYPadding="24" bodyFontFamily="Geist" bodyFontCategory="sans-serif" borderWidth="0" borderRadius="0" textBaseColor="#000000" textBaseFontSize="16" textBaseLineHeight="160" textLinkColor="#000000" heading1Color="#000000" heading1FontSize="22" heading1LineHeight="130" />
-<H1 paddingBottom="24"><Link href="https://getsidequest.dev/" notrack="true">sidequest</Link></H1>
-<Paragraph paddingBottom="16">Use this one-time link to sign in to Sidequest.</Paragraph>
-<Paragraph paddingBottom="24"><Link href="{data.signInUrl}" notrack="true"><Underline>Sign in to Sidequest</Underline></Link></Paragraph>
-<Paragraph>If you didn’t request this email, you can ignore it.</Paragraph>
+<Style backgroundColor="#ffffff" backgroundXPadding="16" backgroundYPadding="40" bodyColor="#ffffff" bodyXPadding="24" bodyYPadding="24" bodyFontFamily="Geist" bodyFontCategory="sans-serif" borderWidth="0" borderRadius="0" textBaseColor="#000000" textBaseFontSize="16" textBaseLineHeight="160" textLinkColor="#666666" heading1Color="#000000" heading1FontSize="22" heading1LineHeight="130" buttonBodyColor="#000000" buttonTextColor="#ffffff" buttonBorderRadius="8" />
+<H1 paddingBottom="32"><Link href="https://getsidequest.dev/" notrack="true">sidequest</Link></H1>
+<Paragraph paddingBottom="24">Use this button to sign in. The link works once and expires in 1 hour.</Paragraph>
+<Button href="{data.signInUrl}" notrack="true" align="left" bgColor="#000000" textColor="#ffffff" borderRadius="8" innerXPadding="24" innerYPadding="14" fontSize="16" paddingBottom="32">Sign in to Sidequest</Button>
+<Paragraph fontSize="14" paddingBottom="8"><Text textColor="#666666">Button not working? Copy this link into your browser:</Text></Paragraph>
+<Paragraph fontSize="14" paddingBottom="32"><Link href="{data.signInUrl}" notrack="true">{data.signInUrl}</Link></Paragraph>
+<Paragraph fontSize="14"><Text textColor="#666666">Didn’t ask to sign in? You can ignore this email.</Text></Paragraph>
