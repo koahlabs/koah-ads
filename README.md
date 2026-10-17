@@ -58,7 +58,7 @@ For the Claude Desktop app, follow [the desktop installation guide](docs/claude-
 Run this in a normal terminal shell, not inside Claude:
 
 ```
-claude plugin marketplace add koahlabs/sidequest && claude plugin install sidequest@koah --scope user
+claude plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
 Then start a new Claude Code session, or run `/reload-plugins` in one that is already open.
@@ -80,7 +80,13 @@ If the `koah` marketplace is already added:
 
 ## Connect
 
-The first session after install starts the connection by itself. It opens
+Start a session that runs the connect command:
+
+```
+claude /sidequest-connect
+```
+
+Or type `/sidequest-connect` at the prompt of an open session. It opens
 [getsidequest.dev/connect](https://getsidequest.dev/connect) and shows a code in
 the status line. If the browser does not open, use the link in the message.
 
@@ -89,13 +95,8 @@ the status line. If the browser does not open, use the link in the message.
 3. Check the request details and confirm.
 
 Claude Code then shows "Sidequest connected as <email>". The code expires after
-10 minutes. To get a new code, or to connect later, run this at the prompt:
-
-```
-/sidequest-connect
-```
-
-Until you connect, the mod requests no ads.
+10 minutes; run the command again for a new one. Until you connect, the mod
+requests no ads and reminds you to connect at the start of each session.
 
 Never enter a code that someone else sent you. Only enter a code shown in your
 own terminal.
@@ -124,7 +125,7 @@ email address or phone number.
 
 ## Requirements
 
-- Claude Code 2.1.287 or later in the terminal, or the Claude Desktop app with bundled Claude Code 2.1.286 or later
+- Claude Code 2.1.292 or later in the terminal (the one-line install needs it), or the Claude Desktop app with bundled Claude Code 2.1.286 or later
 - macOS for advertiser icons: they use `curl` and `sips`. Ads still render
   elsewhere, without the icon.
 
@@ -165,8 +166,8 @@ email address or phone number.
 
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
-6. The first session opens `localhost:3001/connect` by itself. To start again, run `/sidequest-connect`.
-   - To test from scratch, quit Claude Code and run `bun run reset-plugin`. It deletes the plugin's saved device key and code, so the next session acts like a fresh install. To also start with a new site account, sign in with a new address such as `you+test1@koahlabs.com`, or run `bun dev --reset`.
+6. Run `/sidequest-connect` in that session. The browser opens `localhost:3001/connect`.
+   - To test from scratch, quit Claude Code and run `bun run reset`. It deletes every local account with its devices and usage, and the plugin's saved device key, in a few seconds. `bun dev --reset` also wipes everything but takes longer.
    - Sign in with email. Google sign-in is off locally.
    - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".

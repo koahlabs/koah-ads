@@ -2,34 +2,71 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+import { Confetti } from "@/components/confetti";
 import { Icon } from "@/components/icon";
 import { StripeConnectForm } from "@/components/stripe-connect-form";
 import {
   canConnectStripe,
   centsUntilStripe,
   formatCount,
+  formatAgo,
   formatDate,
   formatFullDate,
   formatMoney,
   recentActivity,
   PAYOUT_THRESHOLD_CENTS,
   type DashboardData,
+  type SetupDevice,
+  type SetupStatus,
   type StripeStatus,
 } from "@/lib/dashboard";
+import { useNow } from "@/lib/use-live";
+
+const LIVE_WINDOW_MS = 5 * 60_000;
+
+function DeviceStatus({ device, now }: { device: SetupDevice; now: number }) {
+  const live =
+    device.lastRequestAt !== null && now - Date.parse(device.lastRequestAt) < LIVE_WINDOW_MS;
+  return (
+    <span className="dashboard-last-request" suppressHydrationWarning>
+      <span className={`live-dot${live ? " is-live is-pulsing" : ""}`} aria-hidden="true" />
+      {device.lastRequestAt
+        ? `Last request ${formatAgo(device.lastRequestAt, now)}`
+        : "No requests yet"}
+    </span>
+  );
+}
 
 export function DashboardContent({
   data,
   stripeStatus,
   countries,
   notice = "",
+  setup,
 }: {
   data: DashboardData;
   stripeStatus: StripeStatus;
   countries: string[];
   notice?: string;
+  setup: SetupStatus | null;
 }) {
   const router = useRouter();
+  const now = useNow();
+  const [refreshing, startRefresh] = useTransition();
+  const devices = setup?.devices ?? [];
+  const lastRequestAt = devices
+    .flatMap((device) => (device.lastRequestAt ? [device.lastRequestAt] : []))
+    .toSorted()
+    .at(-1);
+  const live = lastRequestAt !== undefined && now - Date.parse(lastRequestAt) < LIVE_WINDOW_MS;
+  const hasDevice = devices.length > 0;
   const searchParams = useSearchParams();
+  // Read once: the URL is cleaned right away so a reload does not replay the confetti.
+  const [welcome] = useState(() => searchParams.get("welcome") === "1");
+  useEffect(() => {
+    if (welcome) window.history.replaceState(null, "", "/account");
+  }, [welcome]);
   const days = [7, 30, 90].find((option) => String(option) === searchParams.get("days")) ?? 30;
   const metric = searchParams.get("metric") === "impressions" ? "impressions" : "earnings";
   const activity = recentActivity(data.daily, days, data.asOf);
@@ -63,6 +100,7 @@ export function DashboardContent({
 
   return (
     <>
+      {welcome && <Confetti />}
       <div className="dashboard-title-row">
         <h1>Overview</h1>
       </div>
@@ -85,20 +123,36 @@ export function DashboardContent({
         <section className="dashboard-activity" aria-labelledby="activity-heading">
           <div className="dashboard-section-heading">
             <h2 id="activity-heading">Activity</h2>
-            <label className="dashboard-range">
-              <span className="sr-only">Activity period</span>
-              <select
-                value={days}
-                onChange={(event) =>
-                  router.push(queryLink({ days: event.target.value }), { scroll: false })
-                }
+            <div className="dashboard-heading-actions">
+              <span className="dashboard-updated" suppressHydrationWarning>
+                {refreshing ? "Updating…" : `Updated ${formatAgo(data.asOf, now)}`}
+              </span>
+              <button
+                type="button"
+                className="dashboard-refresh"
+                aria-label="Refresh"
+                title="Refresh"
+                onClick={() => startRefresh(() => router.refresh())}
+                disabled={refreshing}
+                data-refreshing={refreshing}
               >
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-              <Icon name="caret-down" size={12} />
-            </label>
+                <Icon name="replay" size={16} />
+              </button>
+              <label className="dashboard-range">
+                <span className="sr-only">Activity period</span>
+                <select
+                  value={days}
+                  onChange={(event) =>
+                    router.push(queryLink({ days: event.target.value }), { scroll: false })
+                  }
+                >
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                </select>
+                <Icon name="caret-down" size={12} />
+              </label>
+            </div>
           </div>
           <nav className="dashboard-metric-tabs" aria-label="Activity metric">
             <Link
@@ -123,7 +177,7 @@ export function DashboardContent({
               <svg
                 viewBox="0 0 660 220"
                 role="img"
-                aria-label={`${earningsMetric ? "Daily earnings" : "Daily impressions"}, ${formatDate(activity[0].date)} to ${formatDate(data.asOf)}. ${formatValue(total)} total. Exact daily values appear in the table below.`}
+                aria-label={`${earningsMetric ? "Daily earnings" : "Daily impressions"}, ${formatDate(activity[0].date)} to ${formatDate(data.asOf.slice(0, 10))}. ${formatValue(total)} total. Exact daily values appear in the table below.`}
               >
                 {[0, 1, 2, 3].map((index) => (
                   <g key={index}>
@@ -159,13 +213,40 @@ export function DashboardContent({
               </svg>
             ) : (
               <figcaption className="dashboard-chart-empty">
-                <strong>{data.available ? "No activity yet" : "Activity is unavailable"}</strong>
-                <span>
-                  {data.available
-                    ? "Use Claude with Sidequest to start earning."
-                    : "Refresh the page to try again."}
-                </span>
-                {data.available && <Link href="/connect">Connect a computer</Link>}
+                {!data.available ? (
+                  <>
+                    <strong>Activity is unavailable</strong>
+                    <span>Refresh the page to try again.</span>
+                  </>
+                ) : lastRequestAt ? (
+                  <>
+                    <strong>Sidequest is working</strong>
+                    <span>
+                      Ads only show when one fits your question, so not every answer gets one. Your
+                      first ad will show up here.
+                    </span>
+                    <span className="dashboard-last-request" suppressHydrationWarning>
+                      <span
+                        className={`live-dot${live ? " is-live is-pulsing" : ""}`}
+                        aria-hidden="true"
+                      />
+                      Last request {formatAgo(lastRequestAt, now)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong>No ads shown yet</strong>
+                    <span>Ask Claude a question to get your first ad.</span>
+                    {!hasDevice && (
+                      <Link
+                        className="auth-button auth-button-primary dashboard-empty-action"
+                        href="/connect"
+                      >
+                        Connect a computer
+                      </Link>
+                    )}
+                  </>
+                )}
               </figcaption>
             )}
           </figure>
@@ -258,6 +339,38 @@ export function DashboardContent({
           </p>
         </section>
       </div>
+
+      {hasDevice && (showChart || !data.available) && (
+        <section className="dashboard-history" aria-labelledby="computers-heading">
+          <div className="dashboard-section-heading">
+            <h2 id="computers-heading">Computers</h2>
+            <Link className="dashboard-section-link" href="/connect">
+              Connect another computer
+            </Link>
+          </div>
+          <table className="dashboard-table">
+            <caption className="sr-only">Computers paired with your account</caption>
+            <thead>
+              <tr>
+                <th scope="col">Paired</th>
+                <th scope="col" className="numeric">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {devices.map((device) => (
+                <tr key={device.connectedAt}>
+                  <td>{formatFullDate(device.connectedAt.slice(0, 10))}</td>
+                  <td className="numeric">
+                    <DeviceStatus device={device} now={now} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="dashboard-history" aria-labelledby="history-heading">
         <div className="dashboard-section-heading">

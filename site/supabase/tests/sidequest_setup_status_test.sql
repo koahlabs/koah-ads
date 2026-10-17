@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(5);
+select plan(6);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@example.com'),
@@ -27,7 +27,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","r
 
 select is(
   sidequest_setup_status(),
-  '{"connected": false, "hasQueries": false}'::jsonb,
+  '{"hasQueries": false, "devices": []}'::jsonb,
   'a user with no device and no usage has neither'
 );
 
@@ -35,14 +35,27 @@ select is(
 
 reset role;
 
-insert into sidequest_devices (key_hash, user_id) values (repeat('a', 64), '00000000-0000-0000-0000-00000000000a');
+insert into sidequest_devices (key_hash, user_id, created_at, last_request_at) values
+  (repeat('a', 64), '00000000-0000-0000-0000-00000000000a', '2026-10-16 10:00:00+00', '2026-10-16 11:00:00+00'),
+  (repeat('d', 64), '00000000-0000-0000-0000-00000000000a', '2026-10-15 10:00:00+00', null);
 
 set local role authenticated;
 
 select is(
-  sidequest_setup_status(),
-  '{"connected": true, "hasQueries": false}'::jsonb,
-  'a confirmed device makes the user connected'
+  sidequest_setup_status() -> 'hasQueries',
+  'false'::jsonb,
+  'confirmed devices alone do not set hasQueries'
+);
+
+select results_eq(
+  $$ select
+       (d ->> 'connectedAt')::timestamptz,
+       (d ->> 'lastRequestAt')::timestamptz
+     from jsonb_array_elements(sidequest_setup_status() -> 'devices') d $$,
+  $$ values
+       ('2026-10-15 10:00:00+00'::timestamptz, null::timestamptz),
+       ('2026-10-16 10:00:00+00'::timestamptz, '2026-10-16 11:00:00+00'::timestamptz) $$,
+  'confirmed devices are listed by connection time with their last request'
 );
 
 -- usage
@@ -54,8 +67,8 @@ insert into sidequest_daily_usage (user_id, day, ad_requests) values ('00000000-
 set local role authenticated;
 
 select is(
-  sidequest_setup_status(),
-  '{"connected": true, "hasQueries": true}'::jsonb,
+  sidequest_setup_status() -> 'hasQueries',
+  'true'::jsonb,
   'a usage row makes hasQueries true'
 );
 
@@ -65,7 +78,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000b","r
 
 select is(
   sidequest_setup_status(),
-  '{"connected": false, "hasQueries": false}'::jsonb,
+  '{"hasQueries": false, "devices": []}'::jsonb,
   'rows of another user do not count'
 );
 

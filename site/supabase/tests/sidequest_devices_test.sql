@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(28);
 
 insert into auth.users (id, email, banned_until, deleted_at) values
   ('00000000-0000-0000-0000-00000000000a', 'a@example.com', null, null),
@@ -218,10 +218,20 @@ select is(
   'the daily cap of one user does not limit another user'
 );
 
+select ok(
+  (select last_request_at is not null from sidequest_devices where key_hash = repeat('9', 64)),
+  'taking an ad request records the device last request time'
+);
+
 select is(
   (select status from sidequest_take_ad_request(repeat('3', 64))),
   'banned',
   'a banned user cannot take an ad request'
+);
+
+select ok(
+  (select last_request_at is null from sidequest_devices where key_hash = repeat('3', 64)),
+  'a banned request does not record a last request time'
 );
 
 select is_empty(

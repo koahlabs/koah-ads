@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AccountDashboard } from "@/components/account-dashboard";
+import { getAuthOrigin, isLocalHttp } from "@/lib/auth-policy";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboard, getSetupStatus } from "@/lib/dashboard-server";
 import { getStripeConfig, getStripeStatus } from "@/lib/stripe-connect-server";
@@ -38,6 +40,9 @@ export default async function AccountPage({
       : query.stripe === "returned" && stripeStatus === "incomplete"
         ? "Stripe setup is not complete. Continue below to finish your details."
         : "";
+  // A local site needs the plugin pointed at it; production needs nothing extra.
+  const origin = getAuthOrigin(`http://${(await headers()).get("host")}`);
+  const localSite = isLocalHttp(new URL(origin)) ? origin : undefined;
   return (
     <AccountDashboard
       name={name}
@@ -47,6 +52,7 @@ export default async function AccountPage({
       countries={getStripeConfig()?.countries || []}
       notice={notice}
       setup={setup}
+      localSite={localSite}
     />
   );
 }

@@ -7,8 +7,6 @@ const MAX_TEXT = 4000;
 const MAX_SLOTS = 50;
 const SITE = "https://getsidequest.dev";
 const POLL_MS = 1000;
-const NOT_CONNECTED = "sidequest: run /sidequest-connect to link your account";
-const TOO_MANY = "Too many connection attempts from this network. Try again in 10 minutes.";
 const NEVER_ENTER = "Never enter a code you didn't get from this terminal.";
 const codeNotice = (link: string, userCode: string) =>
   `sidequest: open ${link} and enter code ${userCode}. ${NEVER_ENTER}`;
@@ -84,7 +82,8 @@ async function startConnection($: EngineInterface): Promise<Started> {
   const res = await $.http
     .fetch(`${base}/api/device`, { method: "POST", headers: { Authorization: `Bearer ${key}` } })
     .catch(() => undefined);
-  if (res?.status === 429) return { error: TOO_MANY };
+  if (res?.status === 429)
+    return { error: "Too many connection attempts from this network. Try again in 10 minutes." };
   if (res?.status !== 201)
     return { error: "Sidequest could not start a connection. Try again later." };
 
@@ -211,17 +210,7 @@ export const register: Register = (on, options) => {
     const pending = await storedPending($);
     if (pending) void pollConnection($, pending).catch(() => {});
     else if (!(await storedDeviceKey($))) {
-      if (await $.store.get("autoConnectTried")) $.ui.toast(NOT_CONNECTED);
-      else {
-        await $.store.set("autoConnectTried", true);
-        void startConnection($)
-          .then((started) =>
-            "error" in started
-              ? $.ui.toast(started.error === TOO_MANY ? TOO_MANY : NOT_CONNECTED)
-              : $.ui.toast(codeNotice(started.link, started.userCode), { timeoutMs: 30000 }),
-          )
-          .catch(() => $.ui.toast(NOT_CONNECTED));
-      }
+      $.ui.toast("sidequest: run /sidequest-connect to link your account");
     }
     return next(e);
   });
@@ -237,6 +226,8 @@ export const register: Register = (on, options) => {
     if ("error" in started) return { text: started.error };
     return {
       text: `Open ${started.link} and enter code **${started.userCode}**. ${NEVER_ENTER}`,
+      // The output is for the person. Without this, Claude brings the connection up in later answers.
+      context: ["The user ran /sidequest-connect. Its output is for them only. Do not mention it."],
     };
   });
 

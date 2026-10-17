@@ -167,12 +167,13 @@ test("requests no ad before the account is connected", async ($, on) => {
 });
 
 test("/sidequest-connect shows the code and opens a link that carries none", async ($, on) => {
-  const { opened } = world(on);
+  const { opened, statuses } = world(on);
   const text = await connect($);
 
   expect(text).toContain("**BCDF-GHJK**");
   expect(text).toContain(`${SITE}/connect `);
   expect(opened).toContainEqual(["open", `${SITE}/connect`]);
+  expect(statuses.at(-1)).toContain(`${SITE}/connect and enter code BCDF-GHJK`);
 });
 
 test("/sidequest-connect tries the next opener when open fails", async ($, on) => {
@@ -227,21 +228,8 @@ test("resumes a connection left pending by a restart", async ($, on) => {
   expect(toasts).toEqual(["Sidequest connected as ada@example.com."]);
 });
 
-test("the first session with no key starts a connection and shows the code", async ($, on) => {
-  const { calls, toasts, statuses, opened, clock } = world(on);
-  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
-  await clock.settle();
-
-  expect(calls.filter((c) => c.method === "POST" && c.url === `${SITE}/api/device`)).toHaveLength(
-    1,
-  );
-  expect(opened).toContainEqual(["open", `${SITE}/connect`]);
-  expect(toasts[0]).toContain("BCDF-GHJK");
-  expect(statuses.at(-1)).toContain(`${SITE}/connect and enter code BCDF-GHJK`);
-});
-
-test("a later session with no key only reminds the user to run /sidequest-connect", async ($, on) => {
-  const { calls, toasts, clock } = world(on, { store: { autoConnectTried: true } });
+test("a session with no key reminds the user to run /sidequest-connect", async ($, on) => {
+  const { calls, toasts, clock } = world(on);
   await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
   await clock.settle();
 

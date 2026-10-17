@@ -12,13 +12,10 @@ Sidequest shows sponsored ads below answers in the **Code** tab of Claude Deskto
 
 ## Install through the desktop app
 
-1. Click **+** beside the prompt box.
-2. Select **Plugins → Add plugin**.
-3. Find and select **sidequest**.
-4. Choose **user scope** to install it for your account on this computer.
-5. Open **+ → Plugins → Manage plugins** and check that Sidequest is enabled.
-
-The plugin browser lists plugins from the marketplaces already configured on your computer. If Sidequest does not appear, register the Koah marketplace with the terminal steps below.
+1. Open **Settings → Plugins**.
+2. Click **Add → Add marketplace → Add from a repository** and enter `koahlabs/sidequest`.
+3. Under **Discover**, find **Sidequest** and click **+**.
+4. Under **Yours**, check that Sidequest is enabled.
 
 ## Add the marketplace or finish installation from a terminal
 
@@ -36,7 +33,7 @@ If the terminal reports `claude: command not found`, follow the [official Claude
 
 ## Connect and verify
 
-Run `/sidequest-connect` in a local Code session, then follow the [connect steps](../README.md#connect). Until you connect, Sidequest requests no ads.
+Start a local Code session and send any message first; Sidequest loads when the session starts. Then run `/sidequest-connect` and follow the [connect steps](../README.md#connect). Until you connect, Sidequest requests no ads.
 
 Ask Claude a question and look below the answer for a card marked **Sponsored**. Enable the `demo` option to see a sample ad; live inventory can return no ad. See [what it sends](../README.md#what-it-sends).
 

@@ -12,7 +12,8 @@ export async function getDashboard(
   supabase: SupabaseClient,
   user: Pick<User, "id" | "created_at">,
 ) {
-  const today = new Date().toISOString().slice(0, 10);
+  const asOf = new Date().toISOString();
+  const today = asOf.slice(0, 10);
   const signedUp = new Date(user.created_at).toISOString().slice(0, 10);
   try {
     const [earnings, payouts] = await Promise.all([
@@ -20,7 +21,7 @@ export async function getDashboard(
       supabase.rpc("sidequest_dashboard"),
     ]);
     if (payouts.error) return unavailableDashboard();
-    return dashboardFromSources(earnings, payouts.data as PayoutsRow, today);
+    return dashboardFromSources(earnings, payouts.data as PayoutsRow, asOf);
   } catch {
     return unavailableDashboard();
   }

@@ -4,6 +4,7 @@ import {
   canConnectStripe,
   centsUntilStripe,
   dashboardFromSources,
+  formatAgo,
   recentActivity,
 } from "../src/lib/dashboard.ts";
 
@@ -88,4 +89,15 @@ test("daily periods include zero days and use UTC across month and year boundari
   );
   assert.equal(days[3].earnedCents, 20);
   assert.equal(recentActivity([], 90, "2026-10-13").length, 90);
+});
+
+test("relative time reads from just now to a date", () => {
+  const now = Date.parse("2026-10-16T12:00:00Z");
+  const ago = (seconds) => formatAgo(new Date(now - seconds * 1000).toISOString(), now);
+  assert.equal(ago(-3), "just now");
+  assert.equal(ago(4), "just now");
+  assert.equal(ago(12), "12 s ago");
+  assert.equal(ago(240), "4 min ago");
+  assert.equal(ago(3 * 3600 + 60), "3 h ago");
+  assert.equal(ago(2 * 86_400), "Oct 14, 2026");
 });

@@ -16,6 +16,7 @@ export type DashboardData = {
   balanceCents: number;
   daily: DailyActivity[];
   payouts: Payout[];
+  /** When the data was read, as an ISO timestamp. */
   asOf: string;
 };
 export type KoahEarning = { date: string; impressions: number; revenueCents: number };
@@ -24,7 +25,11 @@ export type PayoutsRow = {
   pending_payout_cents: number;
   payouts: { id: string; date: string; amount_cents: number; status: Payout["status"] }[];
 };
-export type SetupStatus = { connected: boolean; hasQueries: boolean };
+export type SetupDevice = {
+  connectedAt: string;
+  lastRequestAt: string | null;
+};
+export type SetupStatus = { hasQueries: boolean; devices: SetupDevice[] };
 export type StripeStatus = "not_connected" | "incomplete" | "connected" | "unavailable";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -65,6 +70,15 @@ export function formatFullDate(isoDate: string) {
   return fullDate.format(new Date(`${isoDate}T12:00:00Z`));
 }
 
+export function formatAgo(iso: string, now: number) {
+  const seconds = Math.floor((now - Date.parse(iso)) / 1000);
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds} s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86_400) return `${Math.floor(seconds / 3600)} h ago`;
+  return formatFullDate(iso.slice(0, 10));
+}
+
 export function unavailableDashboard(): DashboardData {
   return {
     available: false,
@@ -75,7 +89,7 @@ export function unavailableDashboard(): DashboardData {
     balanceCents: 0,
     daily: [],
     payouts: [],
-    asOf: new Date().toISOString().slice(0, 10),
+    asOf: new Date().toISOString(),
   };
 }
 
@@ -114,7 +128,7 @@ export function recentActivity(
   asOf: string,
 ): DailyActivity[] {
   const entries = new Map(daily.map((item) => [item.date, item]));
-  const end = new Date(`${asOf}T00:00:00Z`).getTime();
+  const end = new Date(`${asOf.slice(0, 10)}T00:00:00Z`).getTime();
   return Array.from({ length: days }, (_, index) => {
     const day = new Date(end - (days - 1 - index) * 86_400_000).toISOString().slice(0, 10);
     return entries.get(day) || { date: day, impressions: 0, earnedCents: 0 };
