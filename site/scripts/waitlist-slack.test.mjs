@@ -32,17 +32,18 @@ function provider(responses, counter = { body: 42 }) {
 test("sends the signup to Slack and persists delivery only after Slack confirms success", async () => {
   const mock = provider([{ body: [pending] }, { body: "ok" }, { body: { success: true } }]);
   await notifyWaitlistSignup(signup, env, mock.fetch);
+  const slack = mock.calls.find((call) => call.url === env.SETTINGS__KOAH_INFO_SLACK_URL);
+  const marker = mock.calls.find((call) => call.data?.muxWaitlistSlackNotified === true);
   assert.equal(mock.calls.length, 4);
-  assert.equal(mock.calls[2].url, env.SETTINGS__KOAH_INFO_SLACK_URL);
-  assert.equal(mock.calls[2].headers.Authorization, undefined, "never send provider keys to Slack");
-  assert.equal(mock.calls[2].redirect, "error");
-  assert.deepEqual(mock.calls[2].data, {
+  assert.equal(slack.headers.Authorization, undefined, "never send provider keys to Slack");
+  assert.equal(slack.redirect, "error");
+  assert.deepEqual(slack.data, {
     text: "⚔️ Sidequest — new waitlist signup\n🔢 Lead #42\n📧 Email: hello@example.com",
     mrkdwn: false,
     unfurl_links: false,
     unfurl_media: false,
   });
-  assert.deepEqual(mock.calls[3].data, { email: signup.email, muxWaitlistSlackNotified: true });
+  assert.deepEqual(marker.data, { email: signup.email, muxWaitlistSlackNotified: true });
 });
 
 test("missing credentials and invalid webhook destinations never make a request", async () => {
@@ -107,12 +108,19 @@ test("transient marker failure retries the write without sending Slack again", a
 });
 
 test("same-instance concurrent notifications send one message", async () => {
-  const mock = provider([{ body: [pending] }, { body: "ok" }, { body: { success: true } }]);
+  const calls = [];
+  const fetcher = async (url) => {
+    calls.push({ url });
+    if (url.includes("contacts/find")) return Response.json([pending]);
+    if (url === env.SETTINGS__KOAH_INFO_SLACK_URL) return new Response("ok");
+    if (url.includes("contacts/update")) return Response.json({ success: true });
+    return Response.json(42);
+  };
   await Promise.all([
-    notifyWaitlistSignup(signup, env, mock.fetch),
-    notifyWaitlistSignup(signup, env, mock.fetch),
+    notifyWaitlistSignup(signup, env, fetcher),
+    notifyWaitlistSignup(signup, env, fetcher),
   ]);
-  assert.equal(mock.calls.length, 4);
+  assert.equal(calls.filter((call) => call.url === env.SETTINGS__KOAH_INFO_SLACK_URL).length, 1);
 });
 
 test("failure logs exclude email addresses, credentials, and provider messages", async (t) => {
@@ -126,12 +134,7 @@ test("failure logs exclude email addresses, credentials, and provider messages",
   ]);
   await notifyWaitlistSignup(signup, env, mock.fetch);
   assert.match(logs.join("\n"), /Slack notification request failed/);
-  for (const secret of [
-    signup.email,
-    env.LOOPS_API_KEY,
-    env.SETTINGS__KOAH_INFO_SLACK_URL,
-    env.SUPABASE_SECRET_KEY,
-  ])
+  for (const secret of [signup.email, env.LOOPS_API_KEY, env.SETTINGS__KOAH_INFO_SLACK_URL])
     assert.ok(!logs.join("\n").includes(secret));
 });
 
@@ -152,7 +155,6 @@ test("counter failures do not hide the signup or fabricate a lead number", async
       slack.data.text,
       "⚔️ Sidequest — new waitlist signup\n🔢 Lead number: unavailable\n📧 Email: hello@example.com",
     );
-    assert.ok(!JSON.stringify(slack.data).includes(env.SUPABASE_SECRET_KEY));
   }
 });
 

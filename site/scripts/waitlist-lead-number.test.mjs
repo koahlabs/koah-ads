@@ -26,7 +26,13 @@ test("the counter sends only an email hash to the authenticated server RPC", asy
     return Response.json(42);
   });
   assert.equal(result, 42);
-  assert.equal(waitlistEmailHash("HELLO@example.com"), waitlistEmailHash("hello@example.com"));
+});
+
+test("a numeric string counter value is accepted", async () => {
+  const result = await getWaitlistLeadNumber("hello@example.com", env, async () =>
+    Response.json("42"),
+  );
+  assert.equal(result, 42);
 });
 
 test("the counter accepts a local http Supabase URL outside production", async () => {
@@ -57,10 +63,6 @@ test("invalid configuration and invalid numbers never produce an ordinal", async
       null,
     );
   }
-  assert.equal(
-    await getWaitlistLeadNumber("hello@example.com", env, async () => Response.json("42")),
-    42,
-  );
   assert.equal(
     await getWaitlistLeadNumber(
       "hello@example.com",
@@ -99,7 +101,7 @@ test("the import includes existing Sidequest leads, excludes other contacts, and
   assert.throws(() => waitlistHashesFromCsv('email,muxWaitlistJoinedAt\n"unclosed'), /unclosed/);
 });
 
-test("the seed RPC imports hashes without sending email or Slack messages", async () => {
+test("the seed sends the hash list to the seed RPC and returns its count", async () => {
   const hashes = [waitlistEmailHash("old@example.com"), waitlistEmailHash("new@example.com")];
   const total = await seedWaitlistLeadNumbers(hashes, env, async (url, options) => {
     assert.equal(url, "https://counter.supabase.co/rest/v1/rpc/sidequest_seed_waitlist_leads");

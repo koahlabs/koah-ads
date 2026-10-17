@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   deviceConnectionStatus,
   fetchUserEarnings,
-  generateUserCode,
   handleAdRequest,
   handleImpression,
   hashDeviceKey,
@@ -215,9 +214,6 @@ const getDeviceRequest = (key = deviceKey) =>
     headers: { authorization: `Bearer ${key}` },
   });
 
-test("generates user codes from the 20-letter alphabet only", () => {
-  assert.match(generateUserCode(), /^[BCDFGHJKLMNPQRSTVWXZ]{8}$/);
-});
 test("normalizes typed user codes", () => {
   assert.equal(normalizeUserCode("bcdf-ghjk"), "BCDFGHJK");
   for (const input of ["BCDFGHJ", "BCDFGHJKL", "AEIOUBCD", "1234-5678", null])

@@ -2,17 +2,22 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(14);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@example.com'),
-  ('00000000-0000-0000-0000-00000000000b', 'b@example.com');
+  ('00000000-0000-0000-0000-00000000000b', 'b@example.com'),
+  ('00000000-0000-0000-0000-00000000000d', 'd@example.com');
 
 insert into sidequest_payouts (user_id, amount_cents, status) values
   ('00000000-0000-0000-0000-00000000000a', 200, 'paid'),
   ('00000000-0000-0000-0000-00000000000a', 100, 'pending'),
   ('00000000-0000-0000-0000-00000000000a', 500, 'failed'),
   ('00000000-0000-0000-0000-00000000000b', 900, 'paid');
+
+insert into sidequest_payouts (user_id, day, amount_cents, status)
+select '00000000-0000-0000-0000-00000000000d', date '2026-10-01' + n, 100, 'paid'
+from generate_series(0, 10) n;
 
 insert into sidequest_stripe_accounts (user_id, environment, country, account_id) values
   ('00000000-0000-0000-0000-00000000000a', 'test', 'US', 'acct_one'),
@@ -113,6 +118,18 @@ select is(
   sidequest_dashboard(),
   '{"paid_out_cents": 0, "pending_payout_cents": 0, "payouts": []}'::jsonb,
   'a user without payouts sees zero totals and an empty list'
+);
+
+-- payout list limit
+
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated"}';
+
+select is(jsonb_array_length(sidequest_dashboard() -> 'payouts'), 10, 'the dashboard lists at most 10 payouts');
+
+select is(
+  sidequest_dashboard() -> 'payouts' -> 0 ->> 'date',
+  '2026-10-11',
+  'the dashboard lists the newest payout first'
 );
 
 reset role;

@@ -2,6 +2,8 @@
 
 A landing page for an upcoming Claude Code and Claude Desktop mod that shares ad revenue with users. Built with Next.js 16, React 19, and Tailwind CSS 4.
 
+The page collects waitlist signups for the unreleased mod. Ad previews show illustrative placements and earnings. Actual rates and payout details will follow before launch.
+
 ## Local development
 
 See [Local development](../README.md#local-development) in the root README. Keep `.env.local` out of Git. The waitlist form returns an explicit error until Loops is configured; it never pretends to store a signup.
@@ -40,11 +42,11 @@ The server also tracks the custom event `waitlist_signup` after Loops saves a ne
 
 The event has only `source: "waitlist_form"` as custom data. It sends no email address or signup identifier. Existing waitlist members, invalid requests, and failed contact saves do not produce the event. Welcome-email and Slack failures do not change whether the new signup is counted. Next.js runs tracking after the response, so an analytics failure cannot block a signup. Tracking works even when the Slack webhook is unset.
 
-This is the count of newly stored signups after this code is deployed, not the historical Loops waitlist total. Analytics delivery is best effort, and concurrent submissions for the same new address can race before the first contact save becomes visible. Use Loops for the authoritative waitlist total. On deployments protected by Vercel Authentication or a password, server events need Vercel's `VERCEL_AUTOMATION_BYPASS_SECRET`; the SDK uses it automatically when configured. Public production deployments need no additional analytics secret.
+This is the count of newly stored signups after this code is deployed, not the historical Loops waitlist total. Analytics delivery is best effort, and concurrent submissions for the same new address can race before the first contact save becomes visible. Use Loops for the authoritative waitlist total.
 
 New **waitlist** signups send an incoming-webhook message to **#koah-info**, headed **⚔️ Sidequest — new waitlist signup**, with 🔢 for the lead number and 📧 for the normalized email. Account sign-ins do not send messages.
 
-1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Keep it server-only in `.env.local` and the Vercel Production environment. Set it in Preview only if preview signups should also post to the channel. Never commit the URL or use a `NEXT_PUBLIC_` variable.
+1. Set `SETTINGS__KOAH_INFO_SLACK_URL` to the incoming webhook bound to #koah-info. Never commit the URL.
 2. Run `bun run slack:setup` to register the `muxWaitlistSlackNotified` boolean in Loops. This only prepares the delivery marker; it does not send a message, send email, or modify email templates. The full `loops:setup` script also registers this property.
 3. Deploy the updated site. The webhook's Slack configuration determines the destination channel; the app cannot override it. See [Slack's incoming-webhook guide](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
 
@@ -54,7 +56,7 @@ Incoming webhooks do not provide an idempotency key. Same-instance concurrent se
 
 ### Lead numbers, including the existing waitlist
 
-Apply `supabase/migrations/202610160002_waitlist_lead_numbers.sql` and set `SUPABASE_SECRET_KEY` in the server environment. Only the service role can use the counter. Browser sessions cannot read or change it.
+Only the service role can use the counter. Browser sessions cannot read or change it.
 
 Export the current Loops audience as CSV with the `email` and `muxWaitlistJoinedAt` columns. Loops CLI 0.12.0 can find individual contacts but does not provide a bulk contact export or waitlist count. The import includes only contacts with a Sidequest first-join date, normalizes and deduplicates emails, and orders the existing leads by that date. It sends only email hashes to Supabase.
 
@@ -75,18 +77,27 @@ For example:
 
 ## Checks
 
-```bash
-bun run test
-bun run build
-```
-
-The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, Slack delivery, and custom-event eligibility. They mock Loops, Slack, and analytics and send no email, Slack messages, or analytics events.
+Run the commands in [Checks](../README.md#checks). The tests cover input validation, storage failures, repeat signups, email retries, provider conflicts, subscription preservation, rate limiting, Slack delivery, and custom-event eligibility. They mock Loops, Slack, and analytics and send no email, Slack messages, or analytics events.
 
 ## Deployment
 
-Add the same `LOOPS_API_KEY`, `LOOPS_WAITLIST_TRANSACTIONAL_ID`, and optional `LOOPS_WAITLIST_MAILING_LIST_ID` to the deployment's server environment. Set `NEXT_PUBLIC_SITE_URL` to the public site URL for social share images, or use Vercel's automatic production URL. Local `.env.local` values do not configure a deployed site.
+The site runs on Vercel as project `sidequest-landing`, with root directory `site`. A push to `main` deploys it to production when the push changes `site/`. Local `.env.local` values do not configure a deployed site.
 
-The page collects waitlist signups for the unreleased mod. Ad previews show illustrative placements and earnings; actual rates and payout details will follow before launch.
+Set every variable in [`.env.example`](.env.example) in the Vercel project. Notes:
+
+- `SETTINGS__KOAH_INFO_SLACK_URL`: set it in Production. Set it in Preview only if preview signups should post to #koah-info.
+- `NEXT_PUBLIC_SITE_URL`: Production sets `https://getsidequest.dev`. Preview has none, and the site falls back to `VERCEL_PROJECT_PRODUCTION_URL`.
+- Supabase: connect the Supabase Vercel Marketplace resource to `sidequest-landing`. It syncs the public keys to every environment.
+
+Apply every migration in `supabase/migrations`.
+
+In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev`. Allow these exact URLs and no wildcards:
+
+- `https://getsidequest.dev/auth/callback` and `https://getsidequest.dev/auth/callback/connect`
+- `https://mux-landing.vercel.app/auth/callback` and `https://mux-landing.vercel.app/auth/callback/connect`
+- `http://localhost:3001/auth/callback` and `http://localhost:3001/auth/callback/connect`
+
+Keep the `mux-landing.vercel.app` URLs. `getAuthOrigin` builds Preview callbacks from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Update `NEXT_PUBLIC_SITE_URL` and this list together if the domain changes. A wildcard could send a valid token hash to another page. Local Supabase allows the two `localhost:3001` URLs in `supabase/config.toml`.
 
 ## Sign-in
 
@@ -97,7 +108,7 @@ Toggle the boolean [`sign-in-enabled` flag in Vercel](https://vercel.com/koah-14
 - **On:** shows the Sign in or Account link and enables Google and email sign-in.
 - **Off:** hides the link. The pages still load from a direct link. Only emails that end in `@koahlabs.com` can sign in, connect a device, or use Stripe actions. Other emails are signed out with the `invite_only` error. Signing out remains allowed. It does not delete accounts or revoke existing Supabase sessions.
 
-The initial flag is **Off** in Production and Preview and **On** in Development. `src/lib/feature-flags.ts` uses the official Flags SDK with Vercel's OIDC credentials. Vercel supplies these credentials on deployments. For local use, set `FLAGS` as the root README describes. Without a flag value, the fallback is **Off**. This flag controls the website's sign-in feature; Supabase still enforces user authentication and data permissions.
+The initial flag is **Off** in Production and Preview and **On** in Development. `src/lib/feature-flags.ts` uses the official Flags SDK with Vercel's OIDC credentials. Vercel supplies these credentials on deployments. For local use, set `FLAGS` as the [root README](../README.md#local-development) describes. Without a flag value, the fallback is **Off**. This flag controls the website's sign-in feature; Supabase still enforces user authentication and data permissions.
 
 ### Google and email links
 
@@ -113,15 +124,13 @@ The local copy of the sign-in email is `supabase/templates/sign-in.html`. It mir
 
 Run `bun run loops:auth-setup` to publish the dedicated white-background, black-text sign-in email from `emails/sign-in-link.lmx`. The script does not send email or change the waitlist email. It saves a Loops template ID locally and generates `emails/supabase-sign-in.json`. Paste that JSON into both Supabase's **Confirm signup** and **Magic Link** message bodies after configuring Loops SMTP. The payload uses a token hash and the app's allowed callback URL. Auth links disable Loops click tracking. It does not add recipients to the Loops marketing audience. SMTP credentials stay in Supabase; the Next.js app needs no additional private keys for email sign-in.
 
-The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`. Public Supabase settings are configured locally and in Vercel's Production, Preview, and Development environments. Store the Google client secret only in Supabase's Google provider settings.
+The current setup uses the [mux Supabase project](https://supabase.com/dashboard/project/oofxihxdnkqznzndwlbz) and the [mux-landing Google Cloud project](https://console.cloud.google.com/auth/clients?project=koah-mux). The Google web client is named `mux web`. Its authorized callback is `https://oofxihxdnkqznzndwlbz.supabase.co/auth/v1/callback`.
 
-1. Open the existing Supabase organization through its Vercel Marketplace installation. Create a Supabase project if the organization has none.
-2. Connect that resource to the `sidequest-landing` Vercel project. The integration syncs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Older integrations can use `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Authentication uses only these public keys. The ad proxy, Stripe connections, and the waitlist counter use the server-only `SUPABASE_SECRET_KEY`.
-3. Production and Preview get these public settings from the integration. Local values are in the root README.
-4. In Supabase **Authentication → URL Configuration**, set the Site URL to `https://getsidequest.dev` and allow `https://getsidequest.dev/auth/callback`, `https://getsidequest.dev/auth/callback/connect`, `https://mux-landing.vercel.app/auth/callback`, `https://mux-landing.vercel.app/auth/callback/connect`, `http://localhost:3001/auth/callback`, and `http://localhost:3001/auth/callback/connect`. Local Supabase allows the same two `localhost:3001` URLs in `supabase/config.toml`. Keep the `mux-landing.vercel.app` callback: Preview deployments have no `NEXT_PUBLIC_SITE_URL`, so `getAuthOrigin` builds their callback from `VERCEL_PROJECT_PRODUCTION_URL`, which can still be that domain. Production sets `NEXT_PUBLIC_SITE_URL=https://getsidequest.dev`; update it and this allowlist together if the domain changes. List exact URLs and no wildcards. The sign-in link carries a token hash to the redirect URL, so a wildcard could send a valid token to another page.
-5. In Google Auth Platform, create a web OAuth client using the Supabase callback URL shown by **Authentication → Sign In / Providers → Google**. Enable the `openid`, email, and profile scopes. Configure the audience for the intended users.
-6. Save the Google client ID and secret in the Supabase Google provider settings and enable the provider. Do not put the Google secret in Next.js public environment variables.
-7. Sign in with a real Google account on the deployed site. Check `/account`, reload, sign out, and confirm `/account` returns to sign-in.
+1. Set up Supabase and its Vercel connection as [Deployment](#deployment) describes.
+2. In Supabase **Authentication → URL Configuration**, set the redirect URLs as [Deployment](#deployment) describes.
+3. In Google Auth Platform, create a web OAuth client using the Supabase callback URL shown by **Authentication → Sign In / Providers → Google**. Enable the `openid`, email, and profile scopes. Configure the audience for the intended users.
+4. Save the Google client ID and secret in the Supabase Google provider settings and enable the provider. Do not put the Google secret in Next.js public environment variables.
+5. Sign in with a real Google account on the deployed site. Check `/account`, reload, sign out, and confirm `/account` returns to sign-in.
 
 Sign-in and waitlist subscriptions are separate. Google sign-in creates an account but does not add a Loops contact or send marketing email. The website shows an explicit unavailable state until Supabase is configured. Cancelled or failed OAuth flows return to sign-in with safe, fixed messages. Cookies use HttpOnly and SameSite=Lax; production uses Secure cookies. Session responses are private and are not cached.
 
@@ -129,9 +138,9 @@ The auth tests check callback origin restrictions, public-key requirements, emai
 
 ## Ad proxy
 
-The Claude Code plugin calls Koah through this site, so the Koah serving token never reaches a user's computer. In production, set `SUPABASE_SECRET_KEY`, `KOAH_SERVING_TOKEN`, and `KOAH_PUBLISHER_ID` (and optionally `KOAH_API_URL`) in the server environment. Apply `supabase/migrations/202610150001_sidequest_devices.sql`.
+The Claude Code plugin calls Koah through this site, so the Koah serving token never reaches a user's computer.
 
-- `POST /api/device` takes `Authorization: Bearer sq_<43 base64url characters>` and an optional JSON body `{ "os": "macos" | "linux" | "windows" }`. The plugin sends only the OS name. Older plugins send no body. It starts a connection for a key the plugin generated, and returns 201 `{ "userCode": "BCDFGHJK", "expiresAt": "<ISO time>" }`. Pending connections last 10 minutes. It returns 429 when one network (an IPv4 address or an IPv6 /64) already has 10 pending connections, 409 on a key or code collision, and 503 when the request has no client IP. A server without Supabase configuration fails with 500.
+- `POST /api/device` takes `Authorization: Bearer sq_<43 base64url characters>` and an optional JSON body `{ "os": "macos" | "linux" | "windows" }`. The plugin sends only the OS name. Older plugins send no body. It starts a connection for a key the plugin generated, and returns 201 `{ "userCode": "BCDFGHJK", "expiresAt": "<ISO time>" }`. It returns 429 when one network (an IPv4 address or an IPv6 /64) already has 10 pending connections, 409 on a key or code collision, and 503 when the request has no client IP. A server without Supabase configuration fails with 500.
 - `GET /api/device` takes the same bearer key and reports the connection. It returns 200 `{ "email": "..." }` when connected, 202 `{}` while pending, 403 `{ "error": "Account suspended" }` when the account is banned, and 404 when the key is unknown or expired. The plugin polls it.
 - `POST /api/ad` takes the same bearer key and `{ "question": "...", "answer": "...", "conversationId": "..." }`. It looks up the connected user for that device key, forwards the request to Koah's `request_ad` with the user's id and the first `x-forwarded-for` address, and returns Koah's response with `impressionLink` replaced by `impressionId`, the Koah query id. The plugin reports the impression at `POST /api/impression/<impressionId>`. Koah no-fill (204) and rate limits (429) pass through. Other Koah failures return 502. A banned account gets 403; an unconnected key gets 401.
 - `POST /api/impression/<id>` takes the same bearer key and reports the impression to Koah, with the same 401 and 403 rules.
@@ -151,9 +160,9 @@ Banning uses Supabase Auth's user ban. It blocks sign-in and makes every proxy r
 
 The signed-in `/account` page shows a setup wizard until the user's first ad request. The wizard guides install, connect, and a first request, and reads its progress from `sidequest_setup_status()`. After that, the page shows impressions, earnings, daily activity, available balance, and payout history. Days use UTC. The page shows an unavailable state, not zeros, when the data source fails.
 
-1. Apply migrations `202610160001` to `202610160003` in `supabase/migrations`. Migration `202610160001_dashboard.sql` creates `sidequest_payouts`, `sidequest_stripe_accounts`, and the `sidequest_dashboard()` function. Users can read only their own rows. Only the service role can write them.
-2. Set `SUPABASE_SECRET_KEY`, `STRIPE_CONNECT_KEY`, and `STRIPE_CONNECT_COUNTRIES` as `.env.example` describes. Enable Connect and Accounts v2 on the Stripe platform. Check that each listed country supports USD payouts.
-3. Set `KOAH_SERVING_TOKEN` (and `KOAH_API_URL` outside production). The page reads daily impressions and earnings from Koah's `GET /api/v1/server/users/:user_id/earnings`, from the sign-up date to today. The user ID is the Supabase user ID that the ad proxy sends to Koah.
+1. Migration `202610160001_dashboard.sql` creates `sidequest_payouts`, `sidequest_stripe_accounts`, and the `sidequest_dashboard()` function. Users can read only their own rows. Only the service role can write them.
+2. Enable Connect and Accounts v2 on the Stripe platform. Check that each country in `STRIPE_CONNECT_COUNTRIES` supports USD payouts.
+3. The page reads daily impressions and earnings from Koah's `GET /api/v1/server/users/:user_id/earnings`, from the sign-up date to today. The user ID is the Supabase user ID that the ad proxy sends to Koah.
 4. Record each payout in `sidequest_payouts` with a unique `provider_reference`. Mark it `paid` only after the provider confirms it. Failed payouts do not reduce the balance.
 
 To see the page locally, run `bun dev`, sign in, and insert rows into `sidequest_payouts` with the local database. Earnings come from the local Koah server.
@@ -166,4 +175,4 @@ Returning from Stripe does not mean the setup is complete. Each page load reads 
 
 ## Footer payout estimate
 
-The home-page flip counter models Koah network payouts from a measured seven-day impression snapshot, a $15 CPM assumption, and a 70% payout share. It is not a ledger of payments already made. See [the data source, calculation, and refresh steps](docs/payout-estimate.md). The amount advances from Unix time at the snapshot's average pace and persists across reloads.
+See [Footer payout estimate](docs/payout-estimate.md).

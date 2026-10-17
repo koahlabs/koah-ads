@@ -19,7 +19,7 @@ One clearly labeled sponsored card, right where the answer ends.
 [![Website](https://img.shields.io/badge/site-getsidequest.dev-000000?logo=vercel&logoColor=white)](https://getsidequest.dev)
 [![Last commit](https://img.shields.io/github/last-commit/koahlabs/sidequest?color=2ea44f)](https://github.com/koahlabs/sidequest/commits/main)
 
-[Install](#install) · [Connect](#connect) · [Use](#use) · [Privacy](#what-it-sends) · [Local development](#local-development)
+[Install](#install) · [Use](#use) · [Privacy](#what-it-sends) · [Local development](#local-development)
 
 </div>
 
@@ -49,50 +49,11 @@ Built to last, repaired for free. Patagonia's Ironclad Guarantee means...
   conversation, so the model never reads it.
 - Each answer gets its own ad. Earlier ads stay where they are.
 - It works in the terminal and in the Claude desktop app, with the
-  advertiser's icon next to its name.
+  advertiser's icon next to its name when the icon loads.
 
 ## Install
 
-For the Claude Desktop app, follow [the desktop installation guide](docs/claude-desktop.md). Use the **Code** tab and a local session.
-
-Run this in a normal terminal shell, not inside Claude. It needs Claude Code 2.1.292 or later.
-
-```
-claude plugin install sidequest --marketplace koahlabs/sidequest
-```
-
-Then start a new Claude Code session, or run `/reload-plugins` in one that is already open.
-
-Or type this at the prompt of a Claude Code session. It needs Claude Code 2.1.275 or later.
-
-```
-/plugin install sidequest --marketplace koahlabs/sidequest
-```
-
-Answer `y` to add the marketplace, then pick a scope.
-
-## Connect
-
-Start a session that runs the connect command:
-
-```
-claude /sidequest-connect
-```
-
-Or type `/sidequest-connect` at the prompt of an open session. It opens
-[getsidequest.dev/connect](https://getsidequest.dev/connect) and shows a code in
-the status line. If the browser does not open, use the link in the message.
-
-1. Sign in on the connect page.
-2. Type the code that Claude Code shows.
-3. Check the request details and confirm.
-
-Claude Code then shows "Sidequest connected as <email>". The code expires after
-10 minutes; run the command again for a new one. Until you connect, the mod
-requests no ads and reminds you to connect at the start of each session.
-
-Never enter a code that someone else sent you. Only enter a code shown in your
-own terminal.
+Open [getsidequest.dev/account](https://getsidequest.dev/account) and sign in. The setup page shows how to install and connect Sidequest in the terminal or in Claude Desktop.
 
 ## Use
 
@@ -103,25 +64,39 @@ own terminal.
 
 ## What it sends
 
-Each request goes to getsidequest.dev. It carries the last question and answer
-(up to 4,000 characters each), the session ID, and a random per-machine device
-key. The site forwards the request to Koah with your account. The mod does no
-IP lookup: the site sees your IP as any web request does. It never sends an
-email address or phone number.
+Each request goes to getsidequest.dev. It carries the last question and answer (up to 4,000 characters each), the session ID, and a random per-machine device key. The site forwards the request to Koah with your account. The mod does no IP lookup: the site sees your IP as any web request does. It never sends an email address or phone number.
 
 ## Requirements
 
-- Claude Code 2.1.292 or later in the terminal (2.1.275 or later if you install from inside a session), or the Claude Desktop app with bundled Claude Code 2.1.286 or later
-- macOS for advertiser icons: they use `curl` and `sips`. Ads still render
-  elsewhere, without the icon.
+- Claude Code 2.1.292 or later in the terminal. `claude plugin install --marketplace` first shipped in 2.1.292.
+- Claude Desktop with bundled Claude Code 2.1.287 or later. Mods first shipped in 2.1.287. Run `/status` in a local Code session to see that version. It can differ from `claude --version`.
+- Advertiser icons need `curl`. Icons that are not PNG also need `sips`, which macOS includes. Ads show without an icon when it fails to load.
+
+## Troubleshooting
+
+- **No ad appears.** Some requests return no ad. Ask another question.
+- **Claude asks you to run `/sidequest-connect`, or the status line shows `sidequest: not connected`.** Run `/sidequest-connect`.
+- **The plugin does not load.** Start a new session, or run `/reload-plugins`.
+- **`claude: command not found`.** Install the CLI with the [official setup guide](https://code.claude.com/docs/en/setup).
+
+## Update and uninstall
+
+Run these commands in a terminal. After an update, start a new session.
+
+```
+claude plugin update sidequest@koah
+claude plugin uninstall sidequest@koah
+claude plugin marketplace remove koah
+```
+
+The last command is optional. It removes the marketplace.
 
 ## Repo layout
 
-| Folder                | What it is                                                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [`plugin/`](plugin)   | The mod, published through the `koah` marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
-| [`site/`](site)       | The website, a Next.js app deployed on Vercel (project `sidequest-landing`, root directory `site`)                        |
-| [`install/`](install) | A skill that walks someone through installing the mod                                                                     |
+| Folder              | What it is                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`plugin/`](plugin) | The mod, published through the `koah` marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) |
+| [`site/`](site)     | The website, a Next.js app. See [Deployment](site/README.md#deployment).                                                  |
 
 ## Local development
 
@@ -149,21 +124,23 @@ email address or phone number.
    claude --plugin-dir plugin --settings '{"env":{"SIDEQUEST_URL":"http://localhost:3001"}}'
    ```
 
-   The setup wizard's commands assume `SIDEQUEST_URL` is set in `~/.claude/settings.json` under `env` when you test locally. That is the only way Claude Desktop picks it up.
+   The setup wizard's `claude /sidequest-connect` has no `--settings` flag. It targets production unless `SIDEQUEST_URL` is set under `env` in `~/.claude/settings.json`.
 
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
 6. Run `/sidequest-connect` in that session. The browser opens `localhost:3001/connect`.
-   - To test from scratch, quit Claude Code and run `bun run reset`. It deletes every local account with its devices and usage, and the plugin's saved device key, in a few seconds. `bun dev --reset` also wipes everything but takes longer.
+   - To test from scratch, quit Claude Code and run `bun run reset`. It deletes every local account with its devices and usage, and the plugin's saved device key, in a few seconds.
    - Sign in with email. Google sign-in is off locally.
-   - Open the sign-in email in Mailpit at http://127.0.0.1:54324 and click the link.
+   - Open the sign-in email in Mailpit, at the URL that `bun dev` prints, and click the link.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".
    - Claude Code shows "Sidequest connected as <email>".
 7. Ask a question that matches your local `cli` inventory. The ad appears under the reply.
    - If no ad appears, open the queries in local Koah for the Sidequest publisher. `ad_id` 0 means no fill.
    - Local requests have no location, because they come from `::1`.
 
-Checks:
+`bun run uninstall-plugin` runs the uninstall and the marketplace remove.
+
+## Checks
 
 ```
 claude plugin validate plugin
@@ -171,8 +148,6 @@ claude plugin test plugin
 bun run lint
 cd site && bun run test && bun run build
 ```
-
-A push to `main` deploys the site to production when it changes `site/`.
 
 ---
 

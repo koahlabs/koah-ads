@@ -29,7 +29,7 @@ export function hashDeviceKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export function generateUserCode() {
+function generateUserCode() {
   return Array.from(
     { length: USER_CODE_LENGTH },
     () => USER_CODE_ALPHABET[randomInt(USER_CODE_ALPHABET.length)],

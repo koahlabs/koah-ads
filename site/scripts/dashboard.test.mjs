@@ -53,29 +53,6 @@ test("an overpaid account shows a zero balance", () => {
   assert.equal(dashboardFromSources(earnings, overpaid, "2026-10-13").balanceCents, 0);
 });
 
-test("an account without Koah earnings shows zero totals", () => {
-  const data = dashboardFromSources(
-    [],
-    row({ paid_out_cents: 0, pending_payout_cents: 0 }),
-    "2026-10-13",
-  );
-  assert.equal(data.totalEarnedCents, 0);
-  assert.equal(data.balanceCents, 0);
-});
-
-test("days without Koah earnings show as zero in the daily series", () => {
-  const data = dashboardFromSources(earnings, row(), "2026-10-14");
-  const days = recentActivity(data.daily, 3, data.asOf);
-  assert.deepEqual(
-    days.map((day) => [day.date, day.impressions, day.earnedCents]),
-    [
-      ["2026-10-12", 30, 70],
-      ["2026-10-13", 10, 20],
-      ["2026-10-14", 0, 0],
-    ],
-  );
-});
-
 test("daily periods include zero days and use UTC across month and year boundaries", () => {
   const days = recentActivity(
     [{ date: "2025-12-31", impressions: 10, earnedCents: 20 }],

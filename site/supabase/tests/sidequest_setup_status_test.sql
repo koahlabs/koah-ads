@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(7);
+select plan(6);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'a@example.com'),
@@ -50,20 +50,14 @@ select is(
 select results_eq(
   $$ select
        (d ->> 'connectedAt')::timestamptz,
-       (d ->> 'lastRequestAt')::timestamptz
+       (d ->> 'lastRequestAt')::timestamptz,
+       d ->> 'location',
+       d ->> 'os'
      from jsonb_array_elements(sidequest_setup_status() -> 'devices') d $$,
   $$ values
-       ('2026-10-15 10:00:00+00'::timestamptz, null::timestamptz),
-       ('2026-10-16 10:00:00+00'::timestamptz, '2026-10-16 11:00:00+00'::timestamptz) $$,
-  'confirmed devices are listed by connection time with their last request'
-);
-
-select results_eq(
-  $$ select d ->> 'location', d ->> 'os'
-     from jsonb_array_elements(sidequest_setup_status() -> 'devices') d
-     order by d ->> 'connectedAt' desc limit 1 $$,
-  $$ values ('Berlin, DE', 'macos') $$,
-  'devices carry their location and os'
+       ('2026-10-15 10:00:00+00'::timestamptz, null::timestamptz, null::text, null::text),
+       ('2026-10-16 10:00:00+00'::timestamptz, '2026-10-16 11:00:00+00'::timestamptz, 'Berlin, DE', 'macos') $$,
+  'confirmed devices are listed by connection time with their last request, location and os'
 );
 
 -- usage

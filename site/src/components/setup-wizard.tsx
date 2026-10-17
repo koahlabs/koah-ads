@@ -143,7 +143,7 @@ export function SetupWizard({ initial }: { initial: SetupStatus }) {
                 </summary>
                 <ol className="setup-list">
                   <li>
-                    In the Code tab, send this to open the Plugins page
+                    In a local session in the Code tab, send this to open the Plugins page
                     <CopyCommand command="/plugin" />
                   </li>
                   <li>
@@ -154,7 +154,11 @@ export function SetupWizard({ initial }: { initial: SetupStatus }) {
                     <CopyCommand command={marketplaceUrl} />
                   </li>
                   <li>
-                    Open <Ui>Discover</Ui>, find Sidequest and click <Ui>+</Ui>
+                    Open <Ui>Discover</Ui>, find Sidequest, click <Ui>+</Ui> and pick an install
+                    scope
+                  </li>
+                  <li>
+                    Under <Ui>Yours</Ui>, check that Sidequest is enabled
                   </li>
                 </ol>
               </details>
@@ -172,7 +176,7 @@ export function SetupWizard({ initial }: { initial: SetupStatus }) {
             )}
             <p className="setup-fine">
               <a
-                href="https://github.com/koahlabs/sidequest#install"
+                href="https://github.com/koahlabs/sidequest#troubleshooting"
                 target="_blank"
                 rel="noreferrer"
               >
