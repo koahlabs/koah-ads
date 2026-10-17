@@ -1,10 +1,17 @@
-import { test } from "node:test";
+import { afterAll, spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
 import { handleWaitlist } from "../src/lib/waitlist.ts";
+import { fakeFetch, type FakeCall } from "./fake-fetch.ts";
+
+// Retry backoff is real time; run it on the next tick so the suite stays fast.
+const realSetTimeout = globalThis.setTimeout;
+const instantTimers = spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void) =>
+  realSetTimeout(callback, 0)) as typeof setTimeout);
+afterAll(() => instantTimers.mockRestore());
 
 const env = { LOOPS_API_KEY: "test-key", LOOPS_WAITLIST_TRANSACTIONAL_ID: "welcome-template" };
 let client = 0;
-function request(body, headers = {}) {
+function request(body: unknown, headers: Record<string, string> = {}) {
   return new Request("https://mux.example/api/waitlist", {
     method: "POST",
     headers: {
@@ -15,16 +22,18 @@ function request(body, headers = {}) {
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
-function provider(responses) {
-  const calls = [];
+type Signup = { email: string; joinedAt: string };
+type Reply = { body?: unknown; status?: number };
+function provider(responses: Reply[]) {
+  const calls: FakeCall[] = [];
   return {
     calls,
-    fetch: async (url, options) => {
-      calls.push({ url, ...options, data: options.body ? JSON.parse(options.body) : undefined });
+    fetch: fakeFetch(async (url, options) => {
+      calls.push({ url, ...options, data: options.body ? JSON.parse(options.body) : {} });
       const next = responses.shift();
       assert.ok(next, "unexpected provider request");
       return Response.json(next.body, { status: next.status || 200 });
-    },
+    }),
   };
 }
 const signup = { email: "  HELLO@example.com ", consent: true };
@@ -148,16 +157,16 @@ test("retries the marker after a rejected or unreadable response and records it"
     { body: { success: true } },
     { body: { success: true } },
   ];
-  const calls = [];
+  const calls: { url: string; data: unknown }[] = [];
   let markerAttempts = 0;
-  const fetcher = async (url, options) => {
+  const fetcher = fakeFetch(async (url, options) => {
     const data = options.body ? JSON.parse(options.body) : undefined;
     calls.push({ url, data });
     if (data?.muxWaitlistWelcomeSent === true && ++markerAttempts === 1) throw new Error("network");
     if (data?.muxWaitlistWelcomeSent === true && markerAttempts === 2)
       return new Response("not json", { status: 200 });
-    return Response.json(responses.shift().body);
-  };
+    return Response.json(responses.shift()?.body);
+  });
   assert.deepEqual(await (await handleWaitlist(request(signup), env, fetcher)).json(), {
     success: true,
     emailSent: true,
@@ -185,7 +194,7 @@ test("limits repeat requests from one client", async () => {
 });
 
 test("queues a Slack notification after storage even when the welcome email fails", async () => {
-  const events = [];
+  const events: Signup[] = [];
   const mock = provider([
     { body: [] },
     { body: { success: true } },
@@ -203,7 +212,7 @@ test("queues a Slack notification after storage even when the welcome email fail
 });
 
 test("notifies an existing Loops contact joining the waitlist for the first time", async () => {
-  const events = [];
+  const events: Signup[] = [];
   const mock = provider([
     { body: [{ subscribed: false }] },
     { body: { success: true } },
@@ -221,7 +230,7 @@ test("notifies an existing Loops contact joining the waitlist for the first time
 
 test("only pending repeat signups queue Slack; old and delivered signups stay quiet", async () => {
   for (const marker of [false, true, undefined]) {
-    const events = [];
+    const events: Signup[] = [];
     const joinedAt = "2026-10-01T00:00:00.000Z";
     const mock = provider([
       {

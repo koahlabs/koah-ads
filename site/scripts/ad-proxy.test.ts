@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   deviceConnectionStatus,
@@ -7,8 +7,10 @@ import {
   handleImpression,
   hashDeviceKey,
   startDeviceConnection,
+  type DeviceStore,
 } from "../src/lib/ad-proxy.ts";
 import { formatUserCode, normalizeUserCode } from "../src/lib/user-code.ts";
+import { fakeFetch, type FakeCall } from "./fake-fetch.ts";
 
 const deviceKey = `sq_${"a".repeat(43)}`;
 const queryId = "7f1c2e4a-9b3d-4c5e-8f60-1a2b3c4d5e6f";
@@ -18,25 +20,28 @@ const env = {
   KOAH_API_URL: "https://koah.example",
 };
 
-function deps(responses = []) {
-  const calls = [];
+type StartedDevice = Parameters<DeviceStore["startDevice"]>[0];
+type Reply = { body?: unknown; status?: number };
+
+function deps(responses: Reply[] = []) {
+  const calls: FakeCall[] = [];
   return {
     calls,
     env,
-    takeAdRequest: async (keyHash) =>
+    takeAdRequest: async (keyHash: string): ReturnType<DeviceStore["takeAdRequest"]> =>
       keyHash === hashDeviceKey(deviceKey) ? { status: "connected", userId: "user-1" } : null,
-    findDevice: async (keyHash) =>
+    findDevice: async (keyHash: string): ReturnType<DeviceStore["findDevice"]> =>
       keyHash === hashDeviceKey(deviceKey)
         ? { status: "connected", userId: "user-1", email: "a@example.com" }
         : null,
-    fetch: async (url, options) => {
-      calls.push({ url, ...options, data: options.body ? JSON.parse(options.body) : undefined });
+    fetch: fakeFetch(async (url, options) => {
+      calls.push({ url, ...options, data: options.body ? JSON.parse(options.body) : {} });
       const next = responses.shift();
       assert.ok(next, "unexpected Koah request");
       return next.body
         ? Response.json(next.body, { status: next.status || 200 })
         : new Response(null, { status: next.status });
-    },
+    }),
   };
 }
 function adRequest(key = deviceKey, body = { question: "How do I rebase?" }) {
@@ -59,7 +64,10 @@ test("rejects an unknown device key without calling Koah", async () => {
   assert.equal(mock.calls.length, 0);
 });
 test("rejects a banned device with 403 and never calls Koah", async () => {
-  const mock = { ...deps(), takeAdRequest: async () => ({ status: "banned", userId: "user-1" }) };
+  const mock = {
+    ...deps(),
+    takeAdRequest: async () => ({ status: "banned" as const, userId: "user-1" }),
+  };
   const response = await handleAdRequest(adRequest(), mock);
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: "Account suspended" });
@@ -104,7 +112,7 @@ test("fails when Koah rejects the earnings request", async () => {
 test("returns no fill without calling Koah once the daily limit is used", async () => {
   const mock = {
     ...deps(),
-    takeAdRequest: async () => ({ status: "over_limit", userId: "user-1" }),
+    takeAdRequest: async () => ({ status: "over_limit" as const, userId: "user-1" }),
   };
   assert.equal((await handleAdRequest(adRequest(), mock)).status, 204);
   assert.equal(mock.calls.length, 0);
@@ -125,7 +133,7 @@ test("rejects a bad request before it costs a database call", async () => {
     ...deps(),
     takeAdRequest: async () => {
       lookups++;
-      return { status: "connected", userId: "user-1" };
+      return { status: "connected" as const, userId: "user-1" };
     },
   };
   const noIp = new Request("https://sidequest.example/api/ad", {
@@ -160,9 +168,9 @@ test("passes a Koah no-fill, rate limit or success through and reports other sta
 test("reports a Koah network error as 502", async () => {
   const mock = {
     ...deps(),
-    fetch: async () => {
+    fetch: fakeFetch(async () => {
       throw new Error("offline");
-    },
+    }),
   };
   assert.equal((await handleAdRequest(adRequest(), mock)).status, 502);
 });
@@ -199,7 +207,7 @@ test("rejects an unknown device key on an impression without calling Koah", asyn
   assert.equal(mock.calls.length, 0);
 });
 
-function deviceRequest(headers = {}) {
+function deviceRequest(headers: Record<string, string> = {}) {
   return new Request("https://sidequest.example/api/device", {
     method: "POST",
     headers: {
@@ -225,9 +233,9 @@ test("formats user codes with a dash", () => {
   assert.equal(formatUserCode("BCD"), "BCD");
 });
 test("starts a device connection with the caller's ip and location", async () => {
-  const started = [];
+  const started: StartedDevice[] = [];
   const expiresAt = "2026-10-15T12:10:00.000+00:00";
-  const startDevice = async (device) => {
+  const startDevice = async (device: StartedDevice) => {
     started.push(device);
     return expiresAt;
   };
@@ -250,12 +258,12 @@ test("starts a device connection with the caller's ip and location", async () =>
   ]);
 });
 test("stores the os a plugin reports and drops values outside the allowlist", async () => {
-  const started = [];
-  const startDevice = async (device) => {
+  const started: StartedDevice[] = [];
+  const startDevice = async (device: StartedDevice) => {
     started.push(device);
     return "2026-10-15T12:10:00.000+00:00";
   };
-  const withBody = (body) =>
+  const withBody = (body: string) =>
     new Request("https://sidequest.example/api/device", {
       method: "POST",
       headers: { authorization: `Bearer ${deviceKey}`, "x-forwarded-for": "203.0.113.9" },
@@ -270,7 +278,7 @@ test("stores the os a plugin reports and drops values outside the allowlist", as
   );
 });
 test("maps start errors to 429, 409 and 502", async () => {
-  const statusFor = async (code) =>
+  const statusFor = async (code: string) =>
     (
       await startDeviceConnection(deviceRequest(), {
         startDevice: async () => {
@@ -283,7 +291,10 @@ test("maps start errors to 429, 409 and 502", async () => {
   assert.equal(await statusFor("XX000"), 502);
 });
 test("reports device connection status", async () => {
-  const statusFor = async (device, key) => {
+  const statusFor = async (
+    device: Awaited<ReturnType<DeviceStore["findDevice"]>>,
+    key?: string,
+  ) => {
     const response = await deviceConnectionStatus(getDeviceRequest(key), {
       findDevice: async () => device,
     });

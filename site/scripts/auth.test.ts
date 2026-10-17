@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   getAuthOrigin,
@@ -9,8 +9,13 @@ import {
 } from "../src/lib/auth-policy.ts";
 import { getSupabaseConfig, isGoogleSignInAvailable } from "../src/lib/supabase/config.ts";
 import { requestEmailSignIn } from "../src/lib/email-sign-in.ts";
+import { fakeFetch } from "./fake-fetch.ts";
 
-function withEnv(values, run) {
+type Credentials = Parameters<
+  NonNullable<Parameters<typeof requestEmailSignIn>[1]>["signInWithOtp"]
+>[0];
+
+function withEnv(values: Record<string, string>, run: () => void) {
   const before = { ...process.env };
   try {
     for (const key of [
@@ -68,7 +73,7 @@ test("missing Supabase configuration leaves sign-in unavailable", () => {
   withEnv({}, () => assert.equal(getSupabaseConfig(), null));
 });
 test("Supabase accepts public keys and rejects privileged keys", () => {
-  const jwt = (role) =>
+  const jwt = (role: string) =>
     `header.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.signature`;
   withEnv(
     {
@@ -96,7 +101,7 @@ test("Supabase accepts public keys and rejects privileged keys", () => {
 });
 test("Supabase requires HTTPS except for a local project outside production", () => {
   const key = "sb_publishable_test";
-  const config = (NODE_ENV, url) => ({
+  const config = (NODE_ENV: string, url: string) => ({
     NODE_ENV,
     NEXT_PUBLIC_SUPABASE_URL: url,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: key,
@@ -128,38 +133,51 @@ test("the sign-in UI only exposes defined error messages", () => {
 test("Google sign-in only becomes available when Supabase enables the provider", async () => {
   const config = { url: "https://project.supabase.co", key: "sb_publishable_test" };
   for (const enabled of [true, false, "true", undefined]) {
-    const result = await isGoogleSignInAvailable(config, async (url, options) => {
+    const fetcher = fakeFetch(async (url, options) => {
       assert.equal(url, "https://project.supabase.co/auth/v1/settings");
       assert.equal(options.headers.apikey, config.key);
       assert.equal(options.cache, "no-store");
       return Response.json({ external: { google: enabled } });
     });
+    const result = await isGoogleSignInAvailable(config, fetcher);
     assert.equal(result, enabled === true);
   }
   assert.equal(
-    await isGoogleSignInAvailable(null, () => {
-      throw new Error("Must not request without configuration");
-    }),
+    await isGoogleSignInAvailable(
+      null,
+      fakeFetch(() => {
+        throw new Error("Must not request without configuration");
+      }),
+    ),
     false,
   );
   assert.equal(
-    await isGoogleSignInAvailable(config, async () => new Response("Unavailable", { status: 503 })),
+    await isGoogleSignInAvailable(
+      config,
+      fakeFetch(async () => new Response("Unavailable", { status: 503 })),
+    ),
     false,
   );
   assert.equal(
-    await isGoogleSignInAvailable(config, async () => {
-      throw new Error("Network unavailable");
-    }),
+    await isGoogleSignInAvailable(
+      config,
+      fakeFetch(async () => {
+        throw new Error("Network unavailable");
+      }),
+    ),
     false,
   );
   assert.equal(
-    await isGoogleSignInAvailable(config, async () => new Response("Invalid JSON")),
+    await isGoogleSignInAvailable(
+      config,
+      fakeFetch(async () => new Response("Invalid JSON")),
+    ),
     false,
   );
 });
 
 test("email links support both new and existing accounts and use the app callback", async () => {
-  const calls = [];
+  const calls: Credentials[] = [];
   const result = await requestEmailSignIn(
     "  Person+Mux@Example.com  ",
     {

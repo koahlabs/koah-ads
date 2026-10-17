@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   canConnectStripe,
@@ -8,6 +8,8 @@ import {
   formatAgo,
   latestRequestAt,
   recentActivity,
+  type PayoutsRow,
+  type SetupDevice,
 } from "../src/lib/dashboard.ts";
 
 const earnings = [
@@ -15,7 +17,7 @@ const earnings = [
   { date: "2026-10-13", impressions: 10, revenueCents: 20 },
 ];
 
-function row(overrides = {}) {
+function row(overrides: Partial<PayoutsRow> = {}): PayoutsRow {
   return {
     paid_out_cents: 30,
     pending_payout_cents: 20,
@@ -72,7 +74,7 @@ test("daily periods include zero days and use UTC across month and year boundari
 
 test("relative time reads from just now to a date", () => {
   const now = Date.parse("2026-10-16T12:00:00Z");
-  const ago = (seconds) => formatAgo(new Date(now - seconds * 1000).toISOString(), now);
+  const ago = (seconds: number) => formatAgo(new Date(now - seconds * 1000).toISOString(), now);
   assert.equal(ago(-3), "just now");
   assert.equal(ago(4), "just now");
   assert.equal(ago(12), "12 s ago");
@@ -82,7 +84,10 @@ test("relative time reads from just now to a date", () => {
 });
 
 test("describes a computer by location and os, skipping unknown parts", () => {
-  const device = { location: "San Francisco, US", os: "macos" };
+  const device: Pick<SetupDevice, "location" | "os"> = {
+    location: "San Francisco, US",
+    os: "macos",
+  };
   assert.equal(describeDevice(device), "San Francisco, US · macOS");
   assert.equal(describeDevice({ ...device, location: null }), "macOS");
   assert.equal(describeDevice({ location: null, os: null }), "Unknown computer");
