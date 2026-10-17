@@ -6,7 +6,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-strip-types --test scripts/*.test.mjs",
+    "test": "bun test scripts",
     "loops:setup": "node --env-file=.env.local scripts/setup-loops.mjs",
     "loops:auth-setup": "node --env-file=.env.local scripts/setup-auth-email.mjs",
     "slack:setup": "node --env-file=.env.local scripts/setup-waitlist-slack.mjs",
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.4.3",
     "@types/canvas-confetti": "1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",

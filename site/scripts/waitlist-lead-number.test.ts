@@ -1,10 +1,11 @@
-import { test } from "node:test";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   getWaitlistLeadNumber,
   seedWaitlistLeadNumbers,
   waitlistEmailHash,
 } from "../src/lib/waitlist-lead-number.ts";
+import { fakeFetch } from "./fake-fetch.ts";
 import { waitlistHashesFromCsv } from "./waitlist-import.ts";
 
 const env = {
@@ -13,7 +14,7 @@ const env = {
 };
 
 test("the counter sends only an email hash to the authenticated server RPC", async () => {
-  const result = await getWaitlistLeadNumber(" Hello@Example.com ", env, async (url, options) => {
+  const fetcher = fakeFetch(async (url, options) => {
     assert.equal(url, "https://counter.supabase.co/rest/v1/rpc/sidequest_register_waitlist_lead");
     assert.equal(options.method, "POST");
     assert.equal(options.headers.apikey, env.SUPABASE_SECRET_KEY);
@@ -25,22 +26,26 @@ test("the counter sends only an email hash to the authenticated server RPC", asy
     assert.ok(!options.body.includes("hello@example.com"));
     return Response.json(42);
   });
+  const result = await getWaitlistLeadNumber(" Hello@Example.com ", env, fetcher);
   assert.equal(result, 42);
 });
 
 test("a numeric string counter value is accepted", async () => {
-  const result = await getWaitlistLeadNumber("hello@example.com", env, async () =>
-    Response.json("42"),
+  const result = await getWaitlistLeadNumber(
+    "hello@example.com",
+    env,
+    fakeFetch(async () => Response.json("42")),
   );
   assert.equal(result, 42);
 });
 
 test("the counter accepts a local http Supabase URL outside production", async () => {
   const local = { ...env, NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" };
-  const result = await getWaitlistLeadNumber("hello@example.com", local, async (url) => {
+  const fetcher = fakeFetch(async (url) => {
     assert.equal(url, "http://127.0.0.1:54321/rest/v1/rpc/sidequest_register_waitlist_lead");
     return Response.json(1);
   });
+  const result = await getWaitlistLeadNumber("hello@example.com", local, fetcher);
   assert.equal(result, 1);
 });
 
@@ -51,15 +56,23 @@ test("invalid configuration and invalid numbers never produce an ordinal", async
     { ...env, NEXT_PUBLIC_SUPABASE_URL: "http://counter.supabase.co" },
   ]) {
     assert.equal(
-      await getWaitlistLeadNumber("hello@example.com", values, () => {
-        throw new Error("No request expected");
-      }),
+      await getWaitlistLeadNumber(
+        "hello@example.com",
+        values,
+        fakeFetch(() => {
+          throw new Error("No request expected");
+        }),
+      ),
       null,
     );
   }
   for (const value of [0, -1, 10.5, {}, null, "bad", Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal(
-      await getWaitlistLeadNumber("hello@example.com", env, async () => Response.json(value)),
+      await getWaitlistLeadNumber(
+        "hello@example.com",
+        env,
+        fakeFetch(async () => Response.json(value)),
+      ),
       null,
     );
   }
@@ -67,14 +80,18 @@ test("invalid configuration and invalid numbers never produce an ordinal", async
     await getWaitlistLeadNumber(
       "hello@example.com",
       env,
-      async () => new Response("fail", { status: 503 }),
+      fakeFetch(async () => new Response("fail", { status: 503 })),
     ),
     null,
   );
   assert.equal(
-    await getWaitlistLeadNumber("hello@example.com", env, async () => {
-      throw new Error("Private provider error");
-    }),
+    await getWaitlistLeadNumber(
+      "hello@example.com",
+      env,
+      fakeFetch(async () => {
+        throw new Error("Private provider error");
+      }),
+    ),
     null,
   );
 });
@@ -103,10 +120,11 @@ test("the import includes existing Sidequest leads, excludes other contacts, and
 
 test("the seed sends the hash list to the seed RPC and returns its count", async () => {
   const hashes = [waitlistEmailHash("old@example.com"), waitlistEmailHash("new@example.com")];
-  const total = await seedWaitlistLeadNumbers(hashes, env, async (url, options) => {
+  const fetcher = fakeFetch(async (url, options) => {
     assert.equal(url, "https://counter.supabase.co/rest/v1/rpc/sidequest_seed_waitlist_leads");
     assert.deepEqual(JSON.parse(options.body), { p_email_hashes: hashes });
     return Response.json(2);
   });
+  const total = await seedWaitlistLeadNumbers(hashes, env, fetcher);
   assert.equal(total, 2);
 });
