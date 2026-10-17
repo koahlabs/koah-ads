@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(32);
 
 insert into auth.users (id, email, banned_until, deleted_at) values
   ('00000000-0000-0000-0000-00000000000a', 'a@example.com', null, null),
@@ -14,7 +14,7 @@ insert into auth.users (id, email, banned_until, deleted_at) values
 
 -- start and lookup
 
-select sidequest_start_device(repeat('1', 64), 'BCDFGHJK', '203.0.113.1', 'Berlin');
+select sidequest_start_device(repeat('1', 64), 'BCDFGHJK', '203.0.113.1', 'Berlin', 'macos');
 
 select is(
   (select status from sidequest_device(repeat('1', 64))),
@@ -49,14 +49,53 @@ select is(sidequest_confirm_device('BCDFGHJK'), false, 'a code works only once')
 reset role;
 
 select ok(
-  (select requested_ip is null and requested_location is null
-   from sidequest_devices where key_hash = repeat('1', 64)),
-  'confirm clears the requested ip and location'
+  (select requested_ip is null from sidequest_devices where key_hash = repeat('1', 64)),
+  'confirm clears the requested ip'
 );
+
+select results_eq(
+  $$ select requested_location, os from sidequest_devices where key_hash = repeat('1', 64) $$,
+  $$ values ('Berlin', 'macos') $$,
+  'confirm keeps the location and os'
+);
+
+-- unknown os
+
+select throws_ok(
+  $$ select sidequest_start_device(repeat('a', 64), 'FGHJKLMN', '203.0.113.3', null, 'beos') $$,
+  '23514',
+  null,
+  'an os outside the allowlist is rejected'
+);
+
+-- start without os
+
+select sidequest_start_device(repeat('e', 64), 'HJKLMNPQ', '203.0.113.5', 'Oslo');
+
+select is(
+  (select os from sidequest_devices where key_hash = repeat('e', 64)),
+  null,
+  'a device started without an os stores none'
+);
+
+-- pending details
+
+select sidequest_start_device(repeat('b', 64), 'GHJKLMNP', '203.0.113.4', 'Oslo', 'linux');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+
+select results_eq(
+  $$ select os from sidequest_pending_device('GHJKLMNP', null) $$,
+  $$ values ('linux') $$,
+  'lookup returns the os'
+);
+
+reset role;
 
 -- same network
 
-select sidequest_start_device(repeat('8', 64), 'DFGHJKLM', '2001:db8:3:1::1', null);
+select sidequest_start_device(repeat('8', 64), 'DFGHJKLM', '2001:db8:3:1::1', null, null);
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}';
@@ -77,7 +116,7 @@ reset role;
 
 -- expired codes
 
-select sidequest_start_device(repeat('2', 64), 'CDFGHJKL', '203.0.113.2', null);
+select sidequest_start_device(repeat('2', 64), 'CDFGHJKL', '203.0.113.2', null, null);
 update sidequest_devices set expires_at = now() - interval '1 minute' where key_hash = repeat('2', 64);
 
 set local role authenticated;
@@ -165,11 +204,12 @@ select sidequest_start_device(
   md5(n::text) || md5(n::text || 'k'),
   translate(lpad(n::text, 8, '0'), '0123456789', 'BCDFGHJKLM'),
   '198.51.100.7',
+  null,
   null
 ) from generate_series(1000, 1009) n;
 
 select throws_ok(
-  $$ select sidequest_start_device(repeat('5', 64), 'BBBBBBBB', '198.51.100.7', null) $$,
+  $$ select sidequest_start_device(repeat('5', 64), 'BBBBBBBB', '198.51.100.7', null, null) $$,
   'P0429',
   null,
   'an IPv4 address is limited to 10 pending devices'
@@ -179,18 +219,19 @@ select sidequest_start_device(
   md5(n::text) || md5(n::text || 'k'),
   translate(lpad(n::text, 8, '0'), '0123456789', 'BCDFGHJKLM'),
   ('2001:db8:1:1::' || (n - 1999))::inet,
+  null,
   null
 ) from generate_series(2000, 2009) n;
 
 select throws_ok(
-  $$ select sidequest_start_device(repeat('6', 64), 'BBBBBBBC', '2001:db8:1:1:ffff::1', null) $$,
+  $$ select sidequest_start_device(repeat('6', 64), 'BBBBBBBC', '2001:db8:1:1:ffff::1', null, null) $$,
   'P0429',
   null,
   'addresses in the same IPv6 /64 share the pending cap'
 );
 
 select lives_ok(
-  $$ select sidequest_start_device(repeat('7', 64), 'BBBBBBBD', '2001:db8:1:2::1', null) $$,
+  $$ select sidequest_start_device(repeat('7', 64), 'BBBBBBBD', '2001:db8:1:2::1', null, null) $$,
   'a different IPv6 /64 has its own pending cap'
 );
 
@@ -245,7 +286,7 @@ select is(
   (select bool_or(has_function_privilege(r, f, 'execute'))
    from unnest(array['anon', 'authenticated']) r,
         unnest(array[
-          'public.sidequest_start_device(text, text, inet, text)',
+          'public.sidequest_start_device(text, text, inet, text, text)',
           'public.sidequest_device(text)',
           'public.sidequest_take_ad_request(text)',
           'public.sidequest_check_caller(uuid)'

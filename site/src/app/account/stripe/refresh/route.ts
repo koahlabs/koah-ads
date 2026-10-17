@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { signedInClient } from "@/lib/supabase/server";
-import { signInEnabled } from "@/lib/feature-flags";
-import { canSignIn, getAuthOrigin } from "@/lib/auth-policy";
+import { allowedClient } from "@/lib/supabase/server";
+import { getAuthOrigin } from "@/lib/auth-policy";
 import {
   getStripeConfig,
   readStripeAccountId,
@@ -14,10 +13,8 @@ export async function GET(request: NextRequest) {
     NextResponse.redirect(new URL(path, origin), {
       headers: { "Cache-Control": "private, no-store" },
     });
-  const signedIn = await signedInClient();
-  if (!signedIn) return back("/sign-in?error=session");
-  if (!canSignIn(signedIn.user.email, await signInEnabled()))
-    return back("/sign-in?error=invite_only");
+  const signedIn = await allowedClient();
+  if (typeof signedIn === "string") return back(`/sign-in?error=${signedIn}`);
   const config = getStripeConfig();
   if (!config) return back("/account?stripe=unavailable");
   try {

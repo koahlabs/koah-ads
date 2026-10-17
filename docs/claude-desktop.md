@@ -12,18 +12,21 @@ Sidequest shows sponsored ads below answers in the **Code** tab of Claude Deskto
 
 ## Install through the desktop app
 
-1. Open **Settings → Plugins**.
-2. Click **Add → Add marketplace → Add from a repository** and enter `koahlabs/sidequest`.
+The setup page at getsidequest.dev has an **Open in Claude Desktop** link. It opens a new session with a message that asks Claude to run the install command. Press Enter and allow the command.
+
+To install by hand:
+
+1. In the **Code** tab, send `/plugin` to open the Plugins page.
+2. Click **Add → Add marketplace → Add from a repository**, paste `https://github.com/koahlabs/sidequest` into the **URL** box, and click **Sync**.
 3. Under **Discover**, find **Sidequest** and click **+**.
 4. Under **Yours**, check that Sidequest is enabled.
 
-## Add the marketplace or finish installation from a terminal
+## Install from a terminal
 
 Run these commands in your computer's terminal, outside a Claude conversation:
 
 ```bash
-claude plugin marketplace add koahlabs/sidequest
-claude plugin install sidequest@koah --scope user
+claude plugin install sidequest --marketplace koahlabs/sidequest
 claude plugin list
 ```
 
@@ -33,9 +36,9 @@ If the terminal reports `claude: command not found`, follow the [official Claude
 
 ## Connect and verify
 
-Start a local Code session and send any message first; Sidequest loads when the session starts. Then run `/sidequest-connect` and follow the [connect steps](../README.md#connect). Until you connect, Sidequest requests no ads.
+In the same session, run `/sidequest-connect`. You do not need to reload the session. Follow the [connect steps](../README.md#connect). Until you connect, Sidequest requests no ads.
 
-Ask Claude a question and look below the answer for a card marked **Sponsored**. Enable the `demo` option to see a sample ad; live inventory can return no ad. See [what it sends](../README.md#what-it-sends).
+Ask Claude a question and look below the answer for a card marked **Sponsored**. A request with no ad is normal. See [what it sends](../README.md#what-it-sends).
 
 ## If installation or loading fails
 

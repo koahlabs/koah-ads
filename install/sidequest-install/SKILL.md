@@ -25,9 +25,9 @@ Sidequest needs mod support. See the
 Claude Desktop, follow [`../../docs/claude-desktop.md`](../../docs/claude-desktop.md).
 The desktop app and the CLI can have different versions.
 
-Run `claude --version`. The one-line `/plugin install ... --marketplace` form
-needs 2.1.275 or later; the two-command form in step 2 works on any version
-with plugin support. Run `claude plugin list` and look for `sidequest`. If it is
+Run `claude --version`. The in-session `/plugin install ... --marketplace` form
+needs 2.1.275 or later. The shell `claude plugin install ... --marketplace` form
+needs 2.1.292 or later. Run `claude plugin list` and look for `sidequest`. If it is
 already installed, skip to step 3.
 
 ## 2. Install
@@ -39,13 +39,13 @@ commands, so ask the user to type this at the prompt:
 /plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
-They answer `y` to add the marketplace, press Enter for user scope, and answer
-the options screen. The plugin runs at once.
+They answer `y` to add the marketplace and press Enter for user scope. The
+plugin runs at once.
 
 **Anywhere else (desktop Code tab, IDE, or the user prefers you do it).** Run:
 
 ```bash
-claude plugin marketplace add koahlabs/sidequest && claude plugin install sidequest@koah --scope user
+claude plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
 ## 3. Connect
@@ -68,9 +68,6 @@ sends no ad requests and shows a startup message: "run /sidequest-connect".
 Warn the user: never enter a code that someone else sent. Only enter a code
 shown in their own terminal.
 
-The only option is `demo`. `true` serves Koah's fixed sample ad instead of
-live inventory.
-
 ## 4. Verify
 
 1. `claude plugin list` shows `sidequest@koah` as enabled.
@@ -79,7 +76,7 @@ live inventory.
    an advertiser name, `Sponsored`, a call-to-action link, and the ad text.
 3. No ad: if the plugin shows `sidequest: not connected`, the account is not
    linked. Run `/sidequest-connect` again. A request with no fill shows nothing;
-   that is normal. Setting `demo` to `true` confirms the wiring.
+   that is normal.
 
 Advertiser icons need `curl` and `sips`, so they show on macOS only. The ad
 itself shows everywhere.

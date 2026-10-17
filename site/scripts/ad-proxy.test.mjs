@@ -85,7 +85,6 @@ test("forwards the question to Koah for the signed-in user and returns the impre
     platform: "cli",
     user: { id: "user-1", ip: "203.0.113.9" },
     context: { type: "conversation", question: "How do I rebase?" },
-    demo: false,
   });
 });
 test("fetches a user's daily earnings from Koah with the serving token", async () => {
@@ -250,8 +249,29 @@ test("starts a device connection with the caller's ip and location", async () =>
       userCode: normalizeUserCode(body.userCode),
       ip: "203.0.113.9",
       location: "São Paulo, BR",
+      os: null,
     },
   ]);
+});
+test("stores the os a plugin reports and drops values outside the allowlist", async () => {
+  const started = [];
+  const startDevice = async (device) => {
+    started.push(device);
+    return "2026-10-15T12:10:00.000+00:00";
+  };
+  const withBody = (body) =>
+    new Request("https://sidequest.example/api/device", {
+      method: "POST",
+      headers: { authorization: `Bearer ${deviceKey}`, "x-forwarded-for": "203.0.113.9" },
+      body,
+    });
+  await startDeviceConnection(withBody(JSON.stringify({ os: "macos" })), { startDevice });
+  await startDeviceConnection(withBody(JSON.stringify({ os: "toString" })), { startDevice });
+  await startDeviceConnection(withBody("not json"), { startDevice });
+  assert.deepEqual(
+    started.map(({ os }) => os),
+    ["macos", null, null],
+  );
 });
 test("maps start errors to 429, 409 and 502", async () => {
   const statusFor = async (code) =>

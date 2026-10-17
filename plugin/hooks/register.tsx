@@ -14,10 +14,8 @@ const codeNotice = (link: string, userCode: string) =>
 const slots = atom({ plugin: "sidequest", key: "slots" } as const, [] as AdSlot[]);
 const isOff = atom({ plugin: "sidequest", key: "isOff" } as const, false);
 
-type Options = { demo?: boolean };
-type Pending = { key: string; expiresAt: number; userCode?: string };
+type Pending = { key: string; expiresAt: number; userCode: string };
 
-let opts: Options = {};
 let siteOnce: Promise<string> | undefined;
 let question = "";
 // Impression ids already reported this load; Koah dedupes impressions per served ad.
@@ -31,7 +29,9 @@ async function storedDeviceKey($: EngineInterface): Promise<string | undefined> 
 
 async function storedPending($: EngineInterface): Promise<Pending | undefined> {
   const saved = (await $.store.get("pending")) as Partial<Pending> | undefined;
-  return typeof saved?.key === "string" && typeof saved.expiresAt === "number"
+  return typeof saved?.key === "string" &&
+    typeof saved.expiresAt === "number" &&
+    typeof saved.userCode === "string"
     ? (saved as Pending)
     : undefined;
 }
@@ -53,16 +53,18 @@ async function resolveSite($: EngineInterface): Promise<string> {
   return SITE;
 }
 
-// Tries the opener for each OS in turn. The reply always shows the URL, so every failure is ignored.
-async function openBrowser($: EngineInterface, url: string) {
-  const openers = [
-    ["open", url],
-    ["xdg-open", url],
-    ["rundll32", "url.dll,FileProtocolHandler", url],
-  ];
-  for (const argv of openers) {
+const OPENERS = {
+  macos: ["open"],
+  linux: ["xdg-open"],
+  windows: ["rundll32", "url.dll,FileProtocolHandler"],
+};
+type Os = keyof typeof OPENERS;
+
+// With an unknown OS it tries every opener in turn. The reply always shows the URL, so every failure is ignored.
+async function openBrowser($: EngineInterface, url: string, os: Os | undefined) {
+  for (const opener of os ? [OPENERS[os]] : Object.values(OPENERS)) {
     try {
-      if ((await $.process.run(argv)).exitCode === 0) return;
+      if ((await $.process.run([...opener, url])).exitCode === 0) return;
     } catch {}
   }
 }
@@ -73,27 +75,16 @@ function newDeviceKey(): string {
   return `sq_${b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
 }
 
-type Started = { error: string } | { link: string; userCode: string };
-
-// Starts a device connection and opens the connect page.
-async function startConnection($: EngineInterface): Promise<Started> {
-  const base = await site($);
-  const key = newDeviceKey();
-  const res = await $.http
-    .fetch(`${base}/api/device`, { method: "POST", headers: { Authorization: `Bearer ${key}` } })
-    .catch(() => undefined);
-  if (res?.status === 429)
-    return { error: "Too many connection attempts from this network. Try again in 10 minutes." };
-  if (res?.status !== 201)
-    return { error: "Sidequest could not start a connection. Try again later." };
-
-  const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string };
-  const pending = { key, expiresAt: Date.parse(expiresAt), userCode };
-  const link = `${base}/connect`;
-  await $.store.set("pending", pending);
-  await openBrowser($, link);
-  void pollConnection($, pending).catch(() => {});
-  return { link, userCode };
+// Only the OS name goes to the site, never a hostname. Windows sets OS and has no uname.
+async function detectOs($: EngineInterface): Promise<Os | undefined> {
+  if ((await $.env.get("OS")) === "Windows_NT") return "windows";
+  try {
+    const { exitCode, stdout } = await $.process.run(["uname", "-s"]);
+    const names: Record<string, Os | undefined> = { Darwin: "macos", Linux: "linux" };
+    return exitCode === 0 ? names[stdout.trim()] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // Polls until the site confirms the pending key, refuses it, or it expires.
@@ -101,11 +92,18 @@ async function startConnection($: EngineInterface): Promise<Started> {
 // The code stays on the status line until the poll ends, also after a restart.
 async function pollConnection($: EngineInterface, { key, expiresAt, userCode }: Pending) {
   const base = await site($);
-  if (userCode) $.ui.status(codeNotice(`${base}/connect`, userCode));
+  $.ui.status(codeNotice(`${base}/connect`, userCode));
   const finish = async (toast: string) => {
     await $.store.delete("pending");
     $.ui.status(undefined);
     $.ui.toast(toast);
+  };
+
+  const stillPending = async () => {
+    const current = await storedPending($);
+    if (current?.key === key) return true;
+    if (!current) $.ui.status(undefined);
+    return false;
   };
 
   while ((await $.clock.now()) < expiresAt) {
@@ -113,7 +111,7 @@ async function pollConnection($: EngineInterface, { key, expiresAt, userCode }: 
     const res = await $.http
       .fetch(`${base}/api/device`, { headers: { Authorization: `Bearer ${key}` } })
       .catch(() => undefined);
-    if ((await storedPending($))?.key !== key) return;
+    if (!(await stillPending())) return;
     if (res?.status === 200) {
       const { email } = JSON.parse(res.text) as { email: string };
       await $.store.set("deviceKey", key);
@@ -122,7 +120,7 @@ async function pollConnection($: EngineInterface, { key, expiresAt, userCode }: 
     if (res?.status === 403) return finish("Sidequest: this account is suspended.");
     if (res?.status === 404) break;
   }
-  if ((await storedPending($))?.key === key) {
+  if (await stillPending()) {
     await finish("Sidequest: the code expired. Run /sidequest-connect again.");
   }
 }
@@ -194,8 +192,7 @@ function isAd(ad: unknown): ad is KoahAd {
   );
 }
 
-export const register: Register = (on, options) => {
-  opts = options as Options;
+export const register: Register = (on) => {
   siteOnce = undefined;
 
   on("session.start", async ($, e, next) => {
@@ -222,10 +219,29 @@ export const register: Register = (on, options) => {
   });
 
   on("command.run", { command: "sidequest-connect" }, async ($) => {
-    const started = await startConnection($);
-    if ("error" in started) return { text: started.error };
+    const base = await site($);
+    const key = newDeviceKey();
+    const os = await detectOs($);
+    const res = await $.http
+      .fetch(`${base}/api/device`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ os }),
+      })
+      .catch(() => undefined);
+    if (res?.status === 429)
+      return { text: "Too many connection attempts from this network. Try again in 10 minutes." };
+    if (res?.status !== 201)
+      return { text: "Sidequest could not start a connection. Try again later." };
+
+    const { userCode, expiresAt } = JSON.parse(res.text) as { userCode: string; expiresAt: string };
+    const pending = { key, expiresAt: Date.parse(expiresAt), userCode };
+    const link = `${base}/connect`;
+    await $.store.set("pending", pending);
+    await openBrowser($, `${link}?code=${userCode}`, os);
+    void pollConnection($, pending).catch(() => {});
     return {
-      text: `Open ${started.link} and enter code **${started.userCode}**. ${NEVER_ENTER}`,
+      text: `Open ${link} and enter code **${userCode}**. ${NEVER_ENTER}`,
       // The output is for the person. Without this, Claude brings the connection up in later answers.
       context: ["The user ran /sidequest-connect. Its output is for them only. Do not mention it."],
     };
@@ -253,7 +269,6 @@ export const register: Register = (on, options) => {
         question: question.slice(0, MAX_TEXT),
         answer: e.answer.slice(0, MAX_TEXT),
         conversationId: (await $.session.id()).slice(0, 64),
-        demo: opts.demo ?? false,
       }),
     });
 

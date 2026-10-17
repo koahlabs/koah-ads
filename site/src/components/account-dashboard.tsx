@@ -15,7 +15,6 @@ export function AccountDashboard({
   countries,
   notice,
   setup,
-  localSite,
 }: {
   name: string;
   email: string;
@@ -24,7 +23,6 @@ export function AccountDashboard({
   countries: string[];
   notice?: string;
   setup: SetupStatus | null;
-  localSite?: string;
 }) {
   return (
     <div className="dashboard-page">
@@ -53,14 +51,14 @@ export function AccountDashboard({
       </header>
       <main id="main-content" className="dashboard-main">
         {setup && !setup.hasQueries ? (
-          <SetupWizard initial={setup} localSite={localSite} />
+          <SetupWizard initial={setup} />
         ) : (
           <DashboardContent
             data={data}
             stripeStatus={stripeStatus}
             countries={countries}
             notice={notice}
-            setup={setup}
+            devices={setup?.devices ?? []}
           />
         )}
       </main>

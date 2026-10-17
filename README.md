@@ -19,7 +19,7 @@ One clearly labeled sponsored card, right where the answer ends.
 [![Website](https://img.shields.io/badge/site-getsidequest.dev-000000?logo=vercel&logoColor=white)](https://getsidequest.dev)
 [![Last commit](https://img.shields.io/github/last-commit/koahlabs/sidequest?color=2ea44f)](https://github.com/koahlabs/sidequest/commits/main)
 
-[Install](#install) · [Connect](#connect) · [Configure](#configure) · [Use](#use) · [Privacy](#what-it-sends) · [Local development](#local-development)
+[Install](#install) · [Connect](#connect) · [Use](#use) · [Privacy](#what-it-sends) · [Local development](#local-development)
 
 </div>
 
@@ -55,7 +55,7 @@ Built to last, repaired for free. Patagonia's Ironclad Guarantee means...
 
 For the Claude Desktop app, follow [the desktop installation guide](docs/claude-desktop.md). Use the **Code** tab and a local session.
 
-Run this in a normal terminal shell, not inside Claude:
+Run this in a normal terminal shell, not inside Claude. It needs Claude Code 2.1.292 or later.
 
 ```
 claude plugin install sidequest --marketplace koahlabs/sidequest
@@ -63,20 +63,13 @@ claude plugin install sidequest --marketplace koahlabs/sidequest
 
 Then start a new Claude Code session, or run `/reload-plugins` in one that is already open.
 
-Or run this at the prompt of a Claude Code session:
+Or type this at the prompt of a Claude Code session. It needs Claude Code 2.1.275 or later.
 
 ```
 /plugin install sidequest --marketplace koahlabs/sidequest
 ```
 
 Answer `y` to add the marketplace, then pick a scope.
-
-If the `koah` marketplace is already added:
-
-```
-/plugin marketplace update koah
-/plugin install sidequest@koah
-```
 
 ## Connect
 
@@ -101,18 +94,11 @@ requests no ads and reminds you to connect at the start of each session.
 Never enter a code that someone else sent you. Only enter a code shown in your
 own terminal.
 
-## Configure
-
-| Option | What it is                                               |
-| ------ | -------------------------------------------------------- |
-| `demo` | Request Koah's fixed sample ad instead of live inventory |
-
 ## Use
 
 | Action                              | How                                                        |
 | ----------------------------------- | ---------------------------------------------------------- |
 | Turn ads off or on for this session | `/sidequest`                                               |
-| See a sample ad                     | Set `demo` to `true`                                       |
 | Count an impression                 | Automatic, once, when the mod draws the ad under the reply |
 
 ## What it sends
@@ -125,7 +111,7 @@ email address or phone number.
 
 ## Requirements
 
-- Claude Code 2.1.292 or later in the terminal (the one-line install needs it), or the Claude Desktop app with bundled Claude Code 2.1.286 or later
+- Claude Code 2.1.292 or later in the terminal (2.1.275 or later if you install from inside a session), or the Claude Desktop app with bundled Claude Code 2.1.286 or later
 - macOS for advertiser icons: they use `curl` and `sips`. Ads still render
   elsewhere, without the icon.
 
@@ -145,7 +131,6 @@ email address or phone number.
    - In the local publisher dashboard, open Settings → Organization → API Keys. Create a key with the Serving scope.
    - Note the publisher external ID.
    - Add at least one active ad group that targets the `cli` inventory type. CLI requests match only ad groups that opt in to `cli`, so without one every request is a no-fill.
-   - To skip inventory, set the plugin option `demo` to `true`. The plugin then shows a fixed sample ad.
 3. Run `bun dev` from the repo root. It does these steps:
    - It installs packages and the git hooks that format and lint staged files before each commit.
    - It starts Supabase and the Mailpit mail server, and applies the migrations in `site/supabase/migrations`.
@@ -164,12 +149,14 @@ email address or phone number.
    claude --plugin-dir plugin --settings '{"env":{"SIDEQUEST_URL":"http://localhost:3001"}}'
    ```
 
+   The setup wizard's commands assume `SIDEQUEST_URL` is set in `~/.claude/settings.json` under `env` when you test locally. That is the only way Claude Desktop picks it up.
+
    The plugin accepts this override only for `http://localhost` or `http://127.0.0.1`. It reads the override only from your own user settings or the `--settings` flag, never from a repo's settings.
 
 6. Run `/sidequest-connect` in that session. The browser opens `localhost:3001/connect`.
    - To test from scratch, quit Claude Code and run `bun run reset`. It deletes every local account with its devices and usage, and the plugin's saved device key, in a few seconds. `bun dev --reset` also wipes everything but takes longer.
    - Sign in with email. Google sign-in is off locally.
-   - Open the sign-in email in Mailpit at http://127.0.0.1:54324. Click the link in the same browser.
+   - Open the sign-in email in Mailpit at http://127.0.0.1:54324 and click the link.
    - Type the code that Claude Code shows. Check the details and click "Connect this computer".
    - Claude Code shows "Sidequest connected as <email>".
 7. Ask a question that matches your local `cli` inventory. The ad appears under the reply.

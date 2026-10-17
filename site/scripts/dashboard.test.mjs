@@ -4,7 +4,9 @@ import {
   canConnectStripe,
   centsUntilStripe,
   dashboardFromSources,
+  describeDevice,
   formatAgo,
+  latestRequestAt,
   recentActivity,
 } from "../src/lib/dashboard.ts";
 
@@ -100,4 +102,22 @@ test("relative time reads from just now to a date", () => {
   assert.equal(ago(240), "4 min ago");
   assert.equal(ago(3 * 3600 + 60), "3 h ago");
   assert.equal(ago(2 * 86_400), "Oct 14, 2026");
+});
+
+test("describes a computer by location and os, skipping unknown parts", () => {
+  const device = { location: "San Francisco, US", os: "macos" };
+  assert.equal(describeDevice(device), "San Francisco, US · macOS");
+  assert.equal(describeDevice({ ...device, location: null }), "macOS");
+  assert.equal(describeDevice({ location: null, os: null }), "Unknown computer");
+});
+
+test("the latest request time is the newest across devices, ignoring devices without requests", () => {
+  const devices = [
+    { lastRequestAt: "2026-10-16T09:00:00+00:00" },
+    { lastRequestAt: null },
+    { lastRequestAt: "2026-10-16T11:00:00+00:00" },
+  ];
+
+  assert.equal(latestRequestAt(devices), "2026-10-16T11:00:00+00:00");
+  assert.equal(latestRequestAt([{ lastRequestAt: null }]), undefined);
 });

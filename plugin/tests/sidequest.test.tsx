@@ -15,7 +15,6 @@ const AD = {
 
 const PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
-const OPTIONS = { demo: true };
 const SITE = "https://getsidequest.dev";
 const IMPRESSION_URL = `${SITE}/api/impression/${AD.impressionId}`;
 const QUESTION = "What should I look for in running shoes?";
@@ -32,6 +31,8 @@ type WorldOptions = {
   adStatus?: number;
   ad?: typeof AD;
   failingCommands?: string[];
+  osEnv?: Record<string, string>;
+  unameOutput?: string;
 };
 
 // The world beneath the mod: the site proxy, the icon fetch, and an engine
@@ -48,6 +49,8 @@ function world(
     adStatus = 200,
     ad = AD,
     failingCommands = [],
+    osEnv = {},
+    unameOutput = "Darwin\n",
   }: WorldOptions = {},
 ) {
   const calls: Call[] = [];
@@ -85,7 +88,7 @@ function world(
     return {
       value: {
         exitCode: failingCommands.includes(e.argv[0] ?? "") ? 1 : 0,
-        stdout: `${PNG}\n`,
+        stdout: e.argv[0] === "uname" ? unameOutput : `${PNG}\n`,
         stderr: "",
         isStdoutTruncated: false,
         isStderrTruncated: false,
@@ -103,6 +106,7 @@ function world(
   on("session.start", async (_$, e) => ({ cwd: e.cwd }));
   on("command.register", async (_$, e) => ({ value: { command: e.name } }));
   mock.store(on, store);
+  mock.env(on, osEnv);
   on("settings.read", async (_$, e) => {
     const envs: Record<string, Record<string, string>> = {
       project: projectEnv,
@@ -166,21 +170,56 @@ test("requests no ad before the account is connected", async ($, on) => {
   expect(adRequests(calls)).toHaveLength(0);
 });
 
-test("/sidequest-connect shows the code and opens a link that carries none", async ($, on) => {
+test("/sidequest-connect shows the plain link and code, and opens the link with the code", async ($, on) => {
   const { opened, statuses } = world(on);
   const text = await connect($);
 
   expect(text).toContain("**BCDF-GHJK**");
   expect(text).toContain(`${SITE}/connect `);
-  expect(opened).toContainEqual(["open", `${SITE}/connect`]);
+  expect(opened).toContainEqual(["open", `${SITE}/connect?code=BCDF-GHJK`]);
   expect(statuses.at(-1)).toContain(`${SITE}/connect and enter code BCDF-GHJK`);
 });
 
-test("/sidequest-connect tries the next opener when open fails", async ($, on) => {
-  const { opened } = world(on, { failingCommands: ["open"] });
+test("/sidequest-connect tells the site the os, nothing else", async ($, on) => {
+  const { calls } = world(on);
   await connect($);
 
-  expect(opened).toContainEqual(["xdg-open", `${SITE}/connect`]);
+  const start = calls.find((c) => c.method === "POST");
+  expect(JSON.parse(start?.body ?? "")).toEqual({ os: "macos" });
+});
+
+test("/sidequest-connect opens the link with xdg-open on Linux", async ($, on) => {
+  const { opened } = world(on, { unameOutput: "Linux\n" });
+  await connect($);
+
+  expect(opened).toContainEqual(["xdg-open", `${SITE}/connect?code=BCDF-GHJK`]);
+  expect(opened.some((argv) => argv[0] === "open")).toBe(false);
+});
+
+test("/sidequest-connect on Windows reports windows and opens the link with rundll32", async ($, on) => {
+  const { calls, opened } = world(on, { osEnv: { OS: "Windows_NT" } });
+  await connect($);
+
+  const start = calls.find((c) => c.method === "POST");
+  expect(JSON.parse(start?.body ?? "")).toEqual({ os: "windows" });
+  expect(opened).toContainEqual([
+    "rundll32",
+    "url.dll,FileProtocolHandler",
+    `${SITE}/connect?code=BCDF-GHJK`,
+  ]);
+  expect(opened.some((argv) => argv[0] === "open")).toBe(false);
+});
+
+test("/sidequest-connect tries every opener when the os is unknown", async ($, on) => {
+  const { calls, opened } = world(on, {
+    unameOutput: "FreeBSD\n",
+    failingCommands: ["open", "xdg-open"],
+  });
+  await connect($);
+
+  const start = calls.find((c) => c.method === "POST");
+  expect(JSON.parse(start?.body ?? "{}")).toEqual({});
+  expect(opened.map((argv) => argv[0])).toEqual(["uname", "open", "xdg-open", "rundll32"]);
 });
 
 test("once the site confirms the code, the mod names the account and requests ads with that key", async ($, on) => {
@@ -220,12 +259,25 @@ test("a second /sidequest-connect replaces the first, so only its key is connect
 
 test("resumes a connection left pending by a restart", async ($, on) => {
   const { toasts, clock } = world(on, {
-    store: { pending: { key: "sq_pending", expiresAt: 600000 } },
+    store: { pending: { key: "sq_pending", expiresAt: 600000, userCode: "BCDF-GHJK" } },
     polls: [200],
   });
   await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
   await clock.advance(1000);
   expect(toasts).toEqual(["Sidequest connected as ada@example.com."]);
+});
+
+test("a poll whose code another session already confirmed clears its status line", async ($, on) => {
+  const { statuses, toasts, clock } = world(on, {
+    store: { pending: { key: "sq_pending", expiresAt: 600000, userCode: "BCDF-GHJK" } },
+    polls: [200, 202],
+  });
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await $.session.start({ cwd: "/tmp", surface: "terminal", isInteractive: true });
+  await clock.advance(1000);
+
+  expect(toasts).toHaveLength(1);
+  expect(statuses.slice(-2)).toEqual([undefined, undefined]);
 });
 
 test("a session with no key reminds the user to run /sidequest-connect", async ($, on) => {
@@ -271,40 +323,35 @@ test("shows the suspended status when the site refuses a banned account", async 
 });
 
 for (const surface of ["terminal", "desktop"] as const) {
-  test(
-    `shows a labeled ad under the last message of the answer and reports one impression (${surface})`,
-    { options: OPTIONS },
-    async ($, on) => {
-      const { calls, clock } = world(on, CONNECTED);
-      await answer($);
+  test(`shows a labeled ad under the last message of the answer and reports one impression (${surface})`, async ($, on) => {
+    const { calls, clock } = world(on, CONNECTED);
+    await answer($);
 
-      const request = adRequests(calls)[0];
-      expect(keyOf(request)).toBe(KEY);
-      expect(JSON.parse(request?.body ?? "{}")).toEqual({
-        question: QUESTION,
-        answer: ANSWER,
-        conversationId: "session_abc",
-        demo: true,
-      });
+    const request = adRequests(calls)[0];
+    expect(keyOf(request)).toBe(KEY);
+    expect(JSON.parse(request?.body ?? "{}")).toEqual({
+      question: QUESTION,
+      answer: ANSWER,
+      conversationId: "session_abc",
+    });
 
-      const ui = await $.ui.mount({ ...message("Prioritize fit and cushioning."), surface });
-      expect(await ui.find({ text: /Example Brand/ })).toBeDefined();
-      expect(await ui.find({ text: /Sponsored/ })).toBeDefined();
-      expect(await ui.find({ type: surface === "terminal" ? "Image" : "Svg" })).toBeDefined();
-      if (surface === "desktop") {
-        const svg = await ui.find({ type: "Svg" });
-        expect(svg?.props.source).toContain(`data:image/png;base64,${PNG}`);
-        expect(svg?.props.alt).toBe("Example Brand logo");
-      }
-      expect(await ui.find({ type: "Link", text: /Explore/ })).toBeDefined();
+    const ui = await $.ui.mount({ ...message("Prioritize fit and cushioning."), surface });
+    expect(await ui.find({ text: /Example Brand/ })).toBeDefined();
+    expect(await ui.find({ text: /Sponsored/ })).toBeDefined();
+    expect(await ui.find({ type: surface === "terminal" ? "Image" : "Svg" })).toBeDefined();
+    if (surface === "desktop") {
+      const svg = await ui.find({ type: "Svg" });
+      expect(svg?.props.source).toContain(`data:image/png;base64,${PNG}`);
+      expect(svg?.props.alt).toBe("Example Brand logo");
+    }
+    expect(await ui.find({ type: "Link", text: /Explore/ })).toBeDefined();
 
-      await clock.settle();
-      const impressions = calls.filter((c) => c.url === IMPRESSION_URL);
-      expect(impressions).toHaveLength(1);
-      expect(impressions[0]?.auth).toBe(`Bearer ${KEY}`);
-      await ui.unmount();
-    },
-  );
+    await clock.settle();
+    const impressions = calls.filter((c) => c.url === IMPRESSION_URL);
+    expect(impressions).toHaveLength(1);
+    expect(impressions[0]?.auth).toBe(`Bearer ${KEY}`);
+    await ui.unmount();
+  });
 }
 
 test("renders no ad and sends no request for a slot without a valid impressionId", async ($, on) => {

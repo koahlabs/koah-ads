@@ -25,9 +25,15 @@ export type PayoutsRow = {
   pending_payout_cents: number;
   payouts: { id: string; date: string; amount_cents: number; status: Payout["status"] }[];
 };
+export const DEVICE_OS = { macos: "macOS", linux: "Linux", windows: "Windows" } as const;
+export type DeviceOs = keyof typeof DEVICE_OS;
+export const isDeviceOs = (value: unknown): value is DeviceOs =>
+  typeof value === "string" && Object.hasOwn(DEVICE_OS, value);
 export type SetupDevice = {
   connectedAt: string;
   lastRequestAt: string | null;
+  location: string | null;
+  os: DeviceOs | null;
 };
 export type SetupStatus = { hasQueries: boolean; devices: SetupDevice[] };
 export type StripeStatus = "not_connected" | "incomplete" | "connected" | "unavailable";
@@ -77,6 +83,20 @@ export function formatAgo(iso: string, now: number) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
   if (seconds < 86_400) return `${Math.floor(seconds / 3600)} h ago`;
   return formatFullDate(iso.slice(0, 10));
+}
+
+export function describeDevice({ location, os }: Pick<SetupDevice, "location" | "os">) {
+  return [location, os && DEVICE_OS[os]].filter(Boolean).join(" · ") || "Unknown computer";
+}
+
+export function latestRequestAt(devices: Pick<SetupDevice, "lastRequestAt">[]) {
+  return devices.reduce<string | undefined>(
+    (latest, { lastRequestAt }) =>
+      lastRequestAt && (!latest || Date.parse(lastRequestAt) > Date.parse(latest))
+        ? lastRequestAt
+        : latest,
+    undefined,
+  );
 }
 
 export function unavailableDashboard(): DashboardData {

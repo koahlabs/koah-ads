@@ -2,9 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { signedInClient } from "@/lib/supabase/server";
-import { signInEnabled } from "@/lib/feature-flags";
-import { authMessages, canSignIn, getAuthOrigin } from "@/lib/auth-policy";
+import { allowedClient } from "@/lib/supabase/server";
+import { authMessages, getAuthOrigin } from "@/lib/auth-policy";
 import { canConnectStripe } from "@/lib/dashboard";
 import { getDashboard, getSetupStatus } from "@/lib/dashboard-server";
 import {
@@ -23,10 +22,8 @@ export async function connectStripe(
   _previous: ConnectionState,
   formData: FormData,
 ): Promise<ConnectionState> {
-  const signedIn = await signedInClient();
-  if (!signedIn) return { error: "Your session has ended. Please sign in again." };
-  if (!canSignIn(signedIn.user.email, await signInEnabled()))
-    return { error: authMessages.invite_only };
+  const signedIn = await allowedClient();
+  if (typeof signedIn === "string") return { error: authMessages[signedIn] };
   const config = getStripeConfig();
   if (!config) return { error: "Stripe setup is unavailable right now. Try again later." };
   const { supabase, user } = signedIn;
@@ -58,7 +55,7 @@ export async function connectStripe(
 }
 
 export async function readSetupStatus() {
-  const signedIn = await signedInClient();
-  if (!signedIn || !canSignIn(signedIn.user.email, await signInEnabled())) return null;
+  const signedIn = await allowedClient();
+  if (typeof signedIn === "string") return null;
   return getSetupStatus(signedIn.supabase);
 }

@@ -5,13 +5,5 @@
   "author": {
     "name": "Koah Labs"
   },
-  "types": "./types/index.d.ts",
-  "userConfig": {
-    "demo": {
-      "type": "boolean",
-      "title": "Demo ads",
-      "description": "Request Koah's fixed sample ad instead of live inventory",
-      "default": false
-    }
-  }
+  "types": "./types/index.d.ts"
 }

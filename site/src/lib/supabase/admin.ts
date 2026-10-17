@@ -33,12 +33,13 @@ export function deviceStore(): DeviceStore {
       const taken = (await rpc("sidequest_take_ad_request", { p_key_hash: keyHash }))[0];
       return taken ? { status: taken.status, userId: taken.user_id } : null;
     },
-    startDevice: ({ keyHash, userCode, ip, location }) =>
+    startDevice: ({ keyHash, userCode, ip, location, os }) =>
       rpc("sidequest_start_device", {
         p_key_hash: keyHash,
         p_user_code: userCode,
         p_ip: ip,
         p_location: location,
+        p_os: os,
       }),
   };
 }

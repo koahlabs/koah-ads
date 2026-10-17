@@ -9,16 +9,17 @@ import { StripeConnectForm } from "@/components/stripe-connect-form";
 import {
   canConnectStripe,
   centsUntilStripe,
+  describeDevice,
   formatCount,
   formatAgo,
   formatDate,
   formatFullDate,
   formatMoney,
+  latestRequestAt,
   recentActivity,
   PAYOUT_THRESHOLD_CENTS,
   type DashboardData,
   type SetupDevice,
-  type SetupStatus,
   type StripeStatus,
 } from "@/lib/dashboard";
 import { useNow } from "@/lib/use-live";
@@ -43,23 +44,18 @@ export function DashboardContent({
   stripeStatus,
   countries,
   notice = "",
-  setup,
+  devices,
 }: {
   data: DashboardData;
   stripeStatus: StripeStatus;
   countries: string[];
   notice?: string;
-  setup: SetupStatus | null;
+  devices: SetupDevice[];
 }) {
   const router = useRouter();
   const now = useNow();
   const [refreshing, startRefresh] = useTransition();
-  const devices = setup?.devices ?? [];
-  const lastRequestAt = devices
-    .flatMap((device) => (device.lastRequestAt ? [device.lastRequestAt] : []))
-    .toSorted()
-    .at(-1);
-  const live = lastRequestAt !== undefined && now - Date.parse(lastRequestAt) < LIVE_WINDOW_MS;
+  const lastRequestAt = latestRequestAt(devices);
   const hasDevice = devices.length > 0;
   const searchParams = useSearchParams();
   // Read once: the URL is cleaned right away so a reload does not replay the confetti.
@@ -112,10 +108,6 @@ export function DashboardContent({
               ? "We could not load your earnings. Your balance has not changed."
               : notice}
           </p>
-          <button type="button" onClick={() => router.refresh()}>
-            Refresh
-            <Icon name="replay" size={14} />
-          </button>
         </div>
       )}
 
@@ -221,17 +213,20 @@ export function DashboardContent({
                 ) : lastRequestAt ? (
                   <>
                     <strong>Sidequest is working</strong>
-                    <span>
-                      Ads only show when one fits your question, so not every answer gets one. Your
-                      first ad will show up here.
-                    </span>
-                    <span className="dashboard-last-request" suppressHydrationWarning>
-                      <span
-                        className={`live-dot${live ? " is-live is-pulsing" : ""}`}
-                        aria-hidden="true"
-                      />
-                      Last request {formatAgo(lastRequestAt, now)}
-                    </span>
+                    <ol className="dashboard-checklist">
+                      <li className="is-done" suppressHydrationWarning>
+                        <Icon name="check" size={14} />
+                        Requests arriving · {formatAgo(lastRequestAt, now)}
+                      </li>
+                      <li>
+                        <span className="dashboard-checklist-marker" aria-hidden="true" />
+                        First ad shows in Claude when one fits
+                      </li>
+                      <li>
+                        <span className="dashboard-checklist-marker" aria-hidden="true" />
+                        Earnings appear here after
+                      </li>
+                    </ol>
                   </>
                 ) : (
                   <>
@@ -352,6 +347,7 @@ export function DashboardContent({
             <caption className="sr-only">Computers paired with your account</caption>
             <thead>
               <tr>
+                <th scope="col">Computer</th>
                 <th scope="col">Paired</th>
                 <th scope="col" className="numeric">
                   Status
@@ -361,6 +357,7 @@ export function DashboardContent({
             <tbody>
               {devices.map((device) => (
                 <tr key={device.connectedAt}>
+                  <td>{describeDevice(device)}</td>
                   <td>{formatFullDate(device.connectedAt.slice(0, 10))}</td>
                   <td className="numeric">
                     <DeviceStatus device={device} now={now} />

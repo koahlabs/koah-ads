@@ -21,17 +21,22 @@ export function useSetupStatus(initial: SetupStatus, intervalMs: number) {
 
   const check = useCallback(async () => {
     const next = await readSetupStatus().catch(() => null);
-    if (next) return setStatus(next);
+    if (next) setStatus(next);
     // The session ended or the status is unreadable: let the page decide what to show.
-    router.refresh();
+    else router.refresh();
+    return next !== null;
   }, [router]);
 
+  const { hasQueries } = status;
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void check();
+    if (hasQueries) return;
+    const timer = window.setInterval(async () => {
+      if (document.visibilityState === "visible" && !(await check())) {
+        window.clearInterval(timer);
+      }
     }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [check, intervalMs]);
+  }, [check, intervalMs, hasQueries]);
 
   async function checkNow() {
     setChecking(true);
